@@ -1,2 +1,5 @@
 # library-scheduler
-Scheduling Website for Library Employees
+
+This repository houses code for a static website that serves as a monthly scheduling assistant for employees.
+
+
