@@ -80,7 +80,7 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist/ is intentionally NOT ignored — dist/bundle.js is committed for GitHub Pages
 .output
 
 # Gatsby files

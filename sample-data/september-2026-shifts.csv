@@ -1,0 +1,45 @@
+# September 2026 — Shifts Override / Supplement File
+# ─────────────────────────────────────────────────────────────────────
+# Columns: date, action, category, count
+#
+# action = "add"     → add slots on top of daily defaults
+#          "holiday" → mark day closed (columns 3-4 ignored)
+#          "override"→ replace ALL default requirements for this date
+#
+# Default shifts generated automatically each open day:
+#   Mon–Thu: PIC×2(FT 8h), Accounts, Info, Welcome, Float, Support
+#   Fri:     PIC×1(FT 8h), Accounts, Info, Welcome, Float, Support
+#   Sat:     PIC×1(FT 8h), Accounts, Info, Welcome, Float(until 14)
+#   Sun:     closed (no rows needed)
+#
+# ─── HOLIDAY EXAMPLE ────────────────────────────────────────────────
+# Uncomment the next line to close the library on Labour Day:
+# 2026-09-07,holiday,,
+#
+# ─── PROGRAMMING SHIFTS ─────────────────────────────────────────────
+date,action,category,count
+2026-09-01,add,Programming,2
+2026-09-02,add,Programming,2
+2026-09-03,add,Programming,2
+2026-09-04,add,Programming,2
+2026-09-07,add,Programming,2
+2026-09-08,add,Programming,2
+2026-09-09,add,Programming,2
+2026-09-10,add,Programming,2
+2026-09-11,add,Programming,2
+2026-09-14,add,Programming,2
+2026-09-15,add,Programming,2
+2026-09-16,add,Programming,2
+2026-09-17,add,Programming,2
+2026-09-18,add,Programming,2
+2026-09-21,add,Programming,2
+2026-09-22,add,Programming,2
+2026-09-23,add,Programming,2
+2026-09-24,add,Programming,2
+2026-09-25,add,Programming,2
+2026-09-28,add,Programming,2
+2026-09-29,add,Programming,2
+2026-09-30,add,Programming,2
+2026-09-05,add,Programming,1
+2026-09-12,add,Programming,1
+2026-09-26,add,Programming,1

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Library shift scheduler — generate monthly staff schedules with intelligent assignment, preference scoring, and CSV import/export." />
+  <title>Library Scheduler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- =====================================================================
+       App Shell
+  ====================================================================== -->
+  <div id="app">
+
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="header-brand">
+          <span class="brand-icon">📚</span>
+          <div>
+            <h1 class="brand-title">Library Scheduler</h1>
+            <p class="brand-sub">Intelligent shift scheduling for library staff</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main layout -->
+    <main class="app-main">
+
+      <!-- ================================================================
+           Controls Panel
+      ================================================================= -->
+      <aside class="controls-panel" aria-label="Schedule controls">
+
+        <!-- Schedule Parameters -->
+        <section class="ctrl-section" aria-labelledby="params-heading">
+          <h2 id="params-heading" class="ctrl-section-title">
+            <span class="ctrl-icon">⚙️</span> Schedule Parameters
+          </h2>
+
+          <div class="ctrl-row">
+            <label for="month-select" class="ctrl-label">Month</label>
+            <select id="month-select" class="ctrl-select" aria-label="Select month">
+            </select>
+          </div>
+
+          <div class="ctrl-row">
+            <label for="year-input" class="ctrl-label">Year</label>
+            <input id="year-input" type="number" class="ctrl-input"
+                   min="2020" max="2040" value="2026"
+                   aria-label="Enter year" />
+          </div>
+
+          <div class="ctrl-row">
+            <label for="seed-input" class="ctrl-label">
+              Seed
+              <span class="ctrl-hint">integer for deterministic output</span>
+            </label>
+            <input id="seed-input" type="number" class="ctrl-input"
+                   value="12345"
+                   aria-label="Enter random seed" />
+          </div>
+
+          <button id="generate-btn" class="btn btn--primary" type="button">
+            <span class="btn-icon">▶</span> Generate Schedule
+          </button>
+        </section>
+
+        <!-- CSV Uploads -->
+        <section class="ctrl-section" aria-labelledby="csv-heading">
+          <h2 id="csv-heading" class="ctrl-section-title">
+            <span class="ctrl-icon">📂</span> CSV Data
+          </h2>
+
+          <!-- Shifts CSV -->
+          <div class="ctrl-file-group">
+            <p class="ctrl-file-desc">
+              Override shift requirements, add Programming slots, or mark holidays.
+            </p>
+            <label for="shifts-file" class="btn btn--file" id="shifts-file-label">
+              <span class="btn-icon">↑</span> Upload Shifts CSV
+              <input id="shifts-file" type="file" accept=".csv,text/csv" class="visually-hidden"
+                     aria-label="Upload shifts CSV file" />
+            </label>
+            <p id="shifts-filename" class="ctrl-filename">No file selected</p>
+            <button id="dl-shifts-template" class="btn btn--ghost btn--sm" type="button"
+                    aria-label="Download shifts CSV template">
+              ↓ Download Template
+            </button>
+          </div>
+
+          <!-- Employees CSV -->
+          <div class="ctrl-file-group">
+            <p class="ctrl-file-desc">
+              Replace the demo roster with your own employees.
+            </p>
+            <label for="employees-file" class="btn btn--file" id="employees-file-label">
+              <span class="btn-icon">↑</span> Upload Employees CSV
+              <input id="employees-file" type="file" accept=".csv,text/csv" class="visually-hidden"
+                     aria-label="Upload employees CSV file" />
+            </label>
+            <p id="emp-filename" class="ctrl-filename">No file selected</p>
+            <button id="dl-employees-template" class="btn btn--ghost btn--sm" type="button"
+                    aria-label="Download employees CSV template">
+              ↓ Download Template
+            </button>
+          </div>
+        </section>
+
+        <!-- Legend -->
+        <section class="ctrl-section" aria-labelledby="legend-heading">
+          <h2 id="legend-heading" class="ctrl-section-title">
+            <span class="ctrl-icon">🏷</span> Shift Legend
+          </h2>
+          <div id="legend-container" class="legend-grid" aria-label="Shift type legend">
+          </div>
+        </section>
+
+      </aside>
+
+      <!-- ================================================================
+           Calendar + Summary
+      ================================================================= -->
+      <div class="content-area">
+
+        <!-- Status bar -->
+        <div id="status-bar" class="status-bar status-info" role="status" aria-live="polite">
+          Generating schedule…
+        </div>
+
+        <!-- Calendar -->
+        <section aria-labelledby="calendar-title">
+          <div id="calendar-container" class="calendar-container" aria-label="Monthly schedule calendar">
+          </div>
+        </section>
+
+        <!-- Summary table -->
+        <section class="summary-section" aria-labelledby="summary-title">
+          <div id="summary-container" class="summary-container">
+          </div>
+        </section>
+
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>
+        Library Scheduler &mdash; static TypeScript app &mdash;
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+      </p>
+    </footer>
+
+  </div><!-- /#app -->
+
+  <script src="dist/bundle.js"></script>
+</body>
+</html>
