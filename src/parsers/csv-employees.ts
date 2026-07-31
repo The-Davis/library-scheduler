@@ -1,4 +1,4 @@
-import { Employee, EmployeeInit, DayOfWeek, DAY_OF_WEEK_NAMES, CloseThenOpenPref } from '../types/employee';
+import { Employee, EmployeeInit, DaySpec, parseDaySpec, CloseThenOpenPref } from '../types/employee';
 import { EmployeeStatus } from '../types/shift';
 
 // ---------------------------------------------------------------------------
@@ -14,26 +14,33 @@ import { EmployeeStatus } from '../types/shift';
 //   status            — FT | PT | Programming
 //   min_hours         — minimum hours per week (ignored for FT)
 //   max_hours         — maximum hours per week (ignored for FT)
-//   not_available_days — pipe-separated day names, e.g. "Saturday|Sunday"
-//   preferred_days    — pipe-separated day names
-//   preferred_coworkers — pipe-separated names (matched by name to other employees)
+//   not_available_days — pipe-separated DaySpec tokens (see below)
+//   preferred_days    — pipe-separated DaySpec tokens
+//   preferred_coworkers — pipe-separated names (matched by name)
 //   avoid_coworkers   — pipe-separated names
 //   close_then_open   — prefer | avoid | neutral
+//
+// DaySpec token formats (case-insensitive, pipe-separated):
+//   "15"       → that calendar date (the 15th of the scheduled month)
+//   "Monday"   → every Monday in the scheduled month
+//   "Monday3"  → the third Monday of the scheduled month
 // ---------------------------------------------------------------------------
 
 export const EMPLOYEES_CSV_TEMPLATE = `name,status,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
 Jordan Hayes,FT,40,40,,,,,avoid
 Alice Smith,PT,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
 Bob Jones,PT,16,32,,Wednesday|Friday,,Alice Smith,neutral
+Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
 `;
+
 
 export interface EmployeeCSVRow {
   name:               string;
   status:             EmployeeStatus;
   minHoursPerWeek:    number;
   maxHoursPerWeek:    number;
-  notAvailableDays:   DayOfWeek[];
-  preferredDays:      DayOfWeek[];
+  notAvailableDays:   DaySpec[];
+  preferredDays:      DaySpec[];
   preferredCoworkers: string[];
   avoidCoworkers:     string[];
   closeThenOpenPref:  CloseThenOpenPref;
@@ -120,11 +127,15 @@ export function parseEmployeesCSV(raw: string): Employee[] {
 // Parse helpers
 // ---------------------------------------------------------------------------
 
-function parseDayList(raw: string): DayOfWeek[] {
+/**
+ * Parse a pipe-separated list of DaySpec tokens from a CSV cell.
+ * Silently drops any token that cannot be parsed.
+ */
+function parseDayList(raw: string): DaySpec[] {
   if (!raw.trim()) return [];
   return raw.split('|')
-    .map(d => d.trim())
-    .filter(d => (DAY_OF_WEEK_NAMES as string[]).includes(d)) as DayOfWeek[];
+    .map(token => parseDaySpec(token.trim()))
+    .filter((s): s is DaySpec => s !== null);
 }
 
 function parseNameList(raw: string): string[] {

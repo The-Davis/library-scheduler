@@ -1,4 +1,4 @@
-import { Employee, EmployeeInit, DayOfWeek, CloseThenOpenPref } from '../types/employee';
+import { Employee, EmployeeInit, DayOfWeek, DaySpec, ds, CloseThenOpenPref } from '../types/employee';
 import { EmployeeStatus } from '../types/shift';
 import { SeededRandom } from '../algorithm/seeded-random';
 
@@ -43,7 +43,7 @@ const FT_EMPLOYEES: EmployeeInit[] = [
     id:                 'ft-001',
     name:               'Jordan Hayes',
     status:             EmployeeStatus.FullTime,
-    preferredDays:      ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+    preferredDays:      ['Monday', 'Tuesday', 'Wednesday', 'Thursday'].map(d => ds.weekday(d as DayOfWeek)),
     notAvailableDays:   [],
     closeThenOpenPref:  'avoid',
   },
@@ -51,7 +51,7 @@ const FT_EMPLOYEES: EmployeeInit[] = [
     id:                 'ft-002',
     name:               'Morgan Ellis',
     status:             EmployeeStatus.FullTime,
-    preferredDays:      ['Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    preferredDays:      ['Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(d => ds.weekday(d as DayOfWeek)),
     notAvailableDays:   [],
     closeThenOpenPref:  'neutral',
   },
@@ -59,7 +59,7 @@ const FT_EMPLOYEES: EmployeeInit[] = [
     id:                 'ft-003',
     name:               'Avery Simmons',
     status:             EmployeeStatus.FullTime,
-    preferredDays:      ['Monday', 'Wednesday', 'Friday', 'Saturday'],
+    preferredDays:      ['Monday', 'Wednesday', 'Friday', 'Saturday'].map(d => ds.weekday(d as DayOfWeek)),
     notAvailableDays:   [],
     closeThenOpenPref:  'avoid',
     preferredCoworkers: ['ft-001'],
@@ -68,7 +68,7 @@ const FT_EMPLOYEES: EmployeeInit[] = [
     id:                 'ft-004',
     name:               'Casey Thornton',
     status:             EmployeeStatus.FullTime,
-    preferredDays:      ['Thursday', 'Friday', 'Saturday'],
+    preferredDays:      ['Thursday', 'Friday', 'Saturday'].map(d => ds.weekday(d as DayOfWeek)),
     notAvailableDays:   [],
     closeThenOpenPref:  'prefer',
     avoidCoworkers:     ['ft-002'],
@@ -120,14 +120,18 @@ function generatePTEmployees(rng: SeededRandom, count: number): EmployeeInit[] {
       }
     }
 
+    // Wrap weekday names as DaySpec objects
+    const notAvailSpecs: DaySpec[] = notAvailable.map(d => ds.weekday(d));
+    const preferredSpecs: DaySpec[] = preferred.map(d => ds.weekday(d));
+
     employees.push({
       id,
       name,
       status:             EmployeeStatus.PartTime,
       minHoursPerWeek:    minHours,
       maxHoursPerWeek:    maxHours,
-      notAvailableDays:   notAvailable,
-      preferredDays:      preferred,
+      notAvailableDays:   notAvailSpecs,
+      preferredDays:      preferredSpecs,
       unavailableHours,
       preferredHours:     [],
       preferredCoworkers: preferredCo,
