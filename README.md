@@ -47,6 +47,8 @@ Ready-to-upload CSV files are in the `sample-data/` folder:
 name,status,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
 Jordan Hayes,FT,40,40,,Monday|Tuesday|Wednesday|Thursday,,,avoid
 Alice Smith,PT,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
+Bob Jones,PT,16,32,,Wednesday|Friday,,Alice Smith,neutral
+Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
 ```
 
 | Column | Values | Notes |
@@ -55,11 +57,36 @@ Alice Smith,PT,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
 | `status` | `FT` \| `PT` \| `Programming` | FT always gets 40h/week |
 | `min_hours` | Integer | Ignored for FT |
 | `max_hours` | Integer | Ignored for FT |
-| `not_available_days` | Pipe-separated day names | e.g. `Saturday\|Sunday` |
-| `preferred_days` | Pipe-separated day names | Scores +20 per match |
+| `not_available_days` | Pipe-separated **DaySpec** tokens | Days the employee cannot work |
+| `preferred_days` | Pipe-separated **DaySpec** tokens | Days the employee prefers (scores +20) |
 | `preferred_coworkers` | Pipe-separated names | Scores +10 when paired |
 | `avoid_coworkers` | Pipe-separated names | Scores −15 when paired |
 | `close_then_open` | `prefer` \| `avoid` \| `neutral` | Back-to-back shift preference |
+
+#### DaySpec token formats
+
+Both `not_available_days` and `preferred_days` accept pipe-separated **DaySpec** tokens. Three formats are supported and can be freely mixed:
+
+| Token | Example | Meaning |
+|-------|---------|--------|
+| Integer | `15` | That specific calendar date (the 15th of the scheduled month) |
+| Weekday name | `Monday` | Every instance of that weekday in the scheduled month |
+| Weekday + digit | `Monday3` | The **n**th occurrence of that weekday (n = 1–5) |
+
+Tokens are case-insensitive. Multiple tokens are pipe-separated:
+
+```
+# Not available on the 15th OR every Saturday:
+not_available_days = 15|Saturday
+
+# Prefers Fridays AND the third Monday of the month:
+preferred_days = Friday|Monday3
+
+# Not available on the first and last Saturday (assume 4 Saturdays):
+not_available_days = Saturday1|Saturday4
+```
+
+Unrecognised tokens are silently ignored, so it is safe to include comments or extra whitespace.
 
 ### Shifts CSV
 

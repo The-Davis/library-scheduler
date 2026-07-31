@@ -1,4 +1,4 @@
-import { Employee, DAY_OF_WEEK_NAMES } from '../types/employee';
+import { Employee, DAY_OF_WEEK_NAMES, daySpecMatchesDate } from '../types/employee';
 import { ShiftSlot, ShiftDefinition, EmployeeStatus, ShiftCategory } from '../types/shift';
 import { SeededRandom } from './seeded-random';
 
@@ -41,8 +41,7 @@ export interface ScoreContext {
 // ---------------------------------------------------------------------------
 
 function isAvailableForDay(emp: Employee, date: Date): boolean {
-  const dowName = DAY_OF_WEEK_NAMES[date.getDay()];
-  return !emp.notAvailableDays.includes(dowName);
+  return !emp.notAvailableDays.some(spec => daySpecMatchesDate(spec, date));
 }
 
 function isAvailableForHours(emp: Employee, date: Date, slot: ShiftSlot): boolean {
@@ -114,13 +113,13 @@ export function scoreEmployee(ctx: ScoreContext): number {
   // --- Soft preferences ---
   let score = 0;
 
-  // Preferred day
-  const dowName = DAY_OF_WEEK_NAMES[date.getDay()];
-  if (emp.preferredDays.includes(dowName)) {
+  // Preferred day (any matching DaySpec in the employee's preferredDays list)
+  if (emp.preferredDays.some(spec => daySpecMatchesDate(spec, date))) {
     score += BONUS_PREFERRED_DAY;
   }
 
   // Preferred hours
+  const dowName = DAY_OF_WEEK_NAMES[date.getDay()];
   for (const ph of emp.preferredHours) {
     if (ph.day !== dowName) continue;
     if (slot.startHour >= ph.start && slot.endHour <= ph.end) {

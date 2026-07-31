@@ -163,6 +163,56 @@
     "Friday",
     "Saturday"
   ];
+  var DAY_OF_WEEK_INDEX = {
+    Sunday: 0,
+    Monday: 1,
+    Tuesday: 2,
+    Wednesday: 3,
+    Thursday: 4,
+    Friday: 5,
+    Saturday: 6
+  };
+  function parseDaySpec(raw) {
+    const s = raw.trim();
+    if (!s) return null;
+    if (/^\d+$/.test(s)) {
+      const n = parseInt(s, 10);
+      if (n >= 1 && n <= 31) return { type: "date", date: n };
+      return null;
+    }
+    const nthMatch = s.match(
+      /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)([1-5])$/i
+    );
+    if (nthMatch) {
+      const name = DAY_OF_WEEK_NAMES.find(
+        (d) => d.toLowerCase() === nthMatch[1].toLowerCase()
+      );
+      return { type: "nth-weekday", name, nth: parseInt(nthMatch[2], 10) };
+    }
+    const canonical = DAY_OF_WEEK_NAMES.find(
+      (d) => d.toLowerCase() === s.toLowerCase()
+    );
+    if (canonical) return { type: "weekday", name: canonical };
+    return null;
+  }
+  function daySpecMatchesDate(spec, date) {
+    switch (spec.type) {
+      case "date":
+        return date.getDate() === spec.date;
+      case "weekday":
+        return date.getDay() === DAY_OF_WEEK_INDEX[spec.name];
+      case "nth-weekday":
+        return date.getDay() === DAY_OF_WEEK_INDEX[spec.name] && Math.ceil(date.getDate() / 7) === spec.nth;
+    }
+  }
+  var ds = {
+    /** Every occurrence of a weekday in the month, e.g. ds.weekday('Monday') */
+    weekday: (name) => ({ type: "weekday", name }),
+    /** A specific calendar date, e.g. ds.date(15) → the 15th */
+    date: (d) => ({ type: "date", date: d }),
+    /** The nth occurrence of a weekday, e.g. ds.nth('Monday', 3) → 3rd Monday */
+    nth: (name, nth) => ({ type: "nth-weekday", name, nth })
+  };
   var Employee = class {
     constructor(init) {
       this.id = init.id;
@@ -284,8 +334,7 @@
   var PENALTY_CLOSE_OPEN_PREF = -25;
   var BONUS_CLOSE_OPEN_PREF = 15;
   function isAvailableForDay(emp, date) {
-    const dowName = DAY_OF_WEEK_NAMES[date.getDay()];
-    return !emp.notAvailableDays.includes(dowName);
+    return !emp.notAvailableDays.some((spec) => daySpecMatchesDate(spec, date));
   }
   function isAvailableForHours(emp, date, slot) {
     const dowName = DAY_OF_WEEK_NAMES[date.getDay()];
@@ -334,10 +383,10 @@
     if (hasConflictOnDay(emp, slot, dayAssignments)) return HARD_BLOCK;
     if (wouldExceedWeeklyMax(emp, slot, weekIndex, weeklyHours, totalWeeks)) return HARD_BLOCK;
     let score = 0;
-    const dowName = DAY_OF_WEEK_NAMES[date.getDay()];
-    if (emp.preferredDays.includes(dowName)) {
+    if (emp.preferredDays.some((spec) => daySpecMatchesDate(spec, date))) {
       score += BONUS_PREFERRED_DAY;
     }
+    const dowName = DAY_OF_WEEK_NAMES[date.getDay()];
     for (const ph of emp.preferredHours) {
       if (ph.day !== dowName) continue;
       if (slot.startHour >= ph.start && slot.endHour <= ph.end) {
@@ -694,7 +743,7 @@
       id: "ft-001",
       name: "Jordan Hayes",
       status: "FT" /* FullTime */,
-      preferredDays: ["Monday", "Tuesday", "Wednesday", "Thursday"],
+      preferredDays: ["Monday", "Tuesday", "Wednesday", "Thursday"].map((d) => ds.weekday(d)),
       notAvailableDays: [],
       closeThenOpenPref: "avoid"
     },
@@ -702,7 +751,7 @@
       id: "ft-002",
       name: "Morgan Ellis",
       status: "FT" /* FullTime */,
-      preferredDays: ["Tuesday", "Wednesday", "Thursday", "Friday"],
+      preferredDays: ["Tuesday", "Wednesday", "Thursday", "Friday"].map((d) => ds.weekday(d)),
       notAvailableDays: [],
       closeThenOpenPref: "neutral"
     },
@@ -710,7 +759,7 @@
       id: "ft-003",
       name: "Avery Simmons",
       status: "FT" /* FullTime */,
-      preferredDays: ["Monday", "Wednesday", "Friday", "Saturday"],
+      preferredDays: ["Monday", "Wednesday", "Friday", "Saturday"].map((d) => ds.weekday(d)),
       notAvailableDays: [],
       closeThenOpenPref: "avoid",
       preferredCoworkers: ["ft-001"]
@@ -719,7 +768,7 @@
       id: "ft-004",
       name: "Casey Thornton",
       status: "FT" /* FullTime */,
-      preferredDays: ["Thursday", "Friday", "Saturday"],
+      preferredDays: ["Thursday", "Friday", "Saturday"].map((d) => ds.weekday(d)),
       notAvailableDays: [],
       closeThenOpenPref: "prefer",
       avoidCoworkers: ["ft-002"]
@@ -754,14 +803,16 @@
           unavailableHours.push({ day, start: 17, end: 21 });
         }
       }
+      const notAvailSpecs = notAvailable.map((d) => ds.weekday(d));
+      const preferredSpecs = preferred.map((d) => ds.weekday(d));
       employees.push({
         id,
         name,
         status: "PT" /* PartTime */,
         minHoursPerWeek: minHours,
         maxHoursPerWeek: maxHours,
-        notAvailableDays: notAvailable,
-        preferredDays: preferred,
+        notAvailableDays: notAvailSpecs,
+        preferredDays: preferredSpecs,
         unavailableHours,
         preferredHours: [],
         preferredCoworkers: preferredCo,
@@ -888,6 +939,7 @@
 Jordan Hayes,FT,40,40,,,,,avoid
 Alice Smith,PT,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
 Bob Jones,PT,16,32,,Wednesday|Friday,,Alice Smith,neutral
+Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
 `;
   function parseEmployeesCSV(raw) {
     const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -946,7 +998,7 @@ Bob Jones,PT,16,32,,Wednesday|Friday,,Alice Smith,neutral
   }
   function parseDayList(raw) {
     if (!raw.trim()) return [];
-    return raw.split("|").map((d) => d.trim()).filter((d) => DAY_OF_WEEK_NAMES.includes(d));
+    return raw.split("|").map((token) => parseDaySpec(token.trim())).filter((s) => s !== null);
   }
   function parseNameList(raw) {
     if (!raw.trim()) return [];
