@@ -2,7 +2,7 @@
 
 A static TypeScript web application that generates monthly staff schedules for a public library. Runs entirely in the browser — no server required after the initial build.
 
-**Live demo**: deploy to [GitHub Pages](https://pages.github.com/) directly from the repo root.
+**Live demo**: deploy to [GitHub Pages](https://the-davis.github.io/library-scheduler/) directly from the repo root.
 
 ---
 
