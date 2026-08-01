@@ -453,15 +453,24 @@ body {
   box-shadow:    var(--shadow-md);
 }
 
-.calendar-heading {
-  padding:       var(--sp-4) var(--sp-6);
-  font-size:     var(--text-xl);
-  font-weight:   700;
-  background:    linear-gradient(90deg, var(--col-bg-card), var(--col-bg-glass));
-  border-bottom: 1px solid var(--col-border);
-  letter-spacing: -0.02em;
-  color:         var(--col-text-1);
+.calendar-heading-row {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             var(--sp-3);
+  padding:         var(--sp-3) var(--sp-6);
+  background:      linear-gradient(90deg, var(--col-bg-card), var(--col-bg-glass));
+  border-bottom:   1px solid var(--col-border);
 }
+
+.calendar-heading {
+  font-size:      var(--text-xl);
+  font-weight:    700;
+  letter-spacing: -0.02em;
+  color:          var(--col-text-1);
+  margin:         0;
+}
+
 
 .calendar-header {
   display:               grid;

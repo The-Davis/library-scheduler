@@ -1413,12 +1413,23 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
 
   // src/ui/calendar.ts
   var DAY_ABBRS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var DAY_FULL_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   function renderCalendar(schedule, container, employeeMap, onDayClick) {
     container.innerHTML = "";
+    const headingRow = document.createElement("div");
+    headingRow.className = "calendar-heading-row";
     const heading = document.createElement("h2");
     heading.className = "calendar-heading";
     heading.textContent = `${monthName(schedule.month)} ${schedule.year}`;
-    container.appendChild(heading);
+    const printBtn = document.createElement("button");
+    printBtn.id = "calendar-print-btn";
+    printBtn.className = "btn btn--ghost btn--sm";
+    printBtn.innerHTML = "\u{1F5A8}&thinsp;Print";
+    printBtn.setAttribute("aria-label", "Print monthly schedule");
+    printBtn.addEventListener("click", () => printCalendar(schedule, employeeMap));
+    headingRow.appendChild(heading);
+    headingRow.appendChild(printBtn);
+    container.appendChild(headingRow);
     const header = document.createElement("div");
     header.className = "calendar-header";
     for (const abbr of DAY_ABBRS) {
@@ -1734,6 +1745,94 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
       item.appendChild(label);
       container.appendChild(item);
     }
+  }
+  var PRINT_MONTH_NAMES = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
+  function printCalendar(schedule, employeeMap) {
+    const win = window.open("", "_blank", "width=1400,height=900");
+    if (!win) {
+      alert("Print blocked \u2014 please allow pop-ups for this site.");
+      return;
+    }
+    const monthLabel = PRINT_MONTH_NAMES[schedule.month];
+    const title = `${monthLabel} ${schedule.year} \u2014 Staff Schedule`;
+    const dowHeader = DAY_FULL_NAMES.map((d) => `<th>${d}</th>`).join("");
+    const weekRows = schedule.weeks.map((week) => {
+      const cells = week.map((day) => {
+        if (!day) return '<td class="empty"></td>';
+        if (day.isClosed) {
+          const label = day.isHoliday ? "Holiday" : "Closed";
+          return `<td class="closed"><span class="dn">${day.date.getDate()}</span><span class="cl">${label}</span></td>`;
+        }
+        const sorted = [...day.assignments].filter((s) => s.assignedEmployeeId).sort((a, b) => {
+          if (a.startHour !== b.startHour) return a.startHour - b.startHour;
+          const na = employeeMap.get(a.assignedEmployeeId)?.name ?? "";
+          const nb = employeeMap.get(b.assignedEmployeeId)?.name ?? "";
+          return na.localeCompare(nb);
+        });
+        const entries = sorted.map((slot) => {
+          const emp = employeeMap.get(slot.assignedEmployeeId);
+          const name = emp ? escCal(emp.name) : "<em>Unassigned</em>";
+          return `<div class="entry">${name} <span class="hrs">${slot.startHour}:00\u2013${slot.endHour}:00</span></div>`;
+        }).join("");
+        return `<td><span class="dn">${day.date.getDate()}</span>${entries}</td>`;
+      }).join("");
+      return `<tr>${cells}</tr>`;
+    }).join("\n");
+    win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escCal(title)}</title>
+  <style>
+    @page  { size: landscape; margin: 0.4in; }
+    *      { box-sizing: border-box; margin: 0; padding: 0; }
+    body   { font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; color: #000; background: #fff; }
+    h1     { font-size: 15px; font-weight: bold; margin-bottom: 8px; text-align: center; }
+    table  { border-collapse: collapse; width: 100%; table-layout: fixed; }
+    th     { border: 1px solid #000; padding: 4px 3px; text-align: center;
+             font-weight: bold; font-size: 10px; background: #d0d0d0; }
+    td     { border: 1px solid #888; padding: 3px; vertical-align: top;
+             height: 110px; width: 14.285%; }
+    td.empty  { border: 1px solid #ccc; background: #f5f5f5; }
+    td.closed { background: #e8e8e8; color: #555; }
+    .dn    { display: block; font-size: 12px; font-weight: bold; margin-bottom: 3px;
+             border-bottom: 1px solid #ccc; padding-bottom: 2px; }
+    .cl    { display: block; font-size: 9px; color: #777; text-align: center;
+             margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .entry { font-size: 8.5px; line-height: 1.35; padding: 1px 0;
+             border-bottom: 1px dotted #ddd; white-space: nowrap;
+             overflow: hidden; text-overflow: ellipsis; }
+    .entry:last-child { border-bottom: none; }
+    .hrs   { color: #444; font-size: 8px; }
+    .tbd   { color: #999; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>${escCal(title)}</h1>
+  <table>
+    <thead><tr>${dowHeader}</tr></thead>
+    <tbody>${weekRows}</tbody>
+  </table>
+  <script>window.onload = () => window.print();<\/script>
+</body>
+</html>`);
+    win.document.close();
+  }
+  function escCal(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function groupByCategory(slots) {
     const map = /* @__PURE__ */ new Map();
