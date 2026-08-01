@@ -1,6 +1,10 @@
 import { Employee } from '../types/employee';
 import { MonthSchedule } from '../types/schedule';
+import { Day } from '../types/day';
 import { DayOverride, runScheduler } from '../algorithm/scheduler';
+import { DailySchedule } from '../types/daily-schedule';
+import { buildDailySchedule } from '../algorithm/daily-scheduler';
+import { showDailyModal } from './daily-modal';
 import { getDemoEmployees, getDemoProgrammingDays } from '../data/demo';
 import { parseShiftsCSV, SHIFTS_CSV_TEMPLATE } from '../parsers/csv-shifts';
 import { parseEmployeesCSV, EMPLOYEES_CSV_TEMPLATE } from '../parsers/csv-employees';
@@ -19,6 +23,8 @@ interface AppState {
   overrides:         Map<string, DayOverride>;
   schedule:          MonthSchedule | null;
   weeklyHoursMap:    Map<string, number[]>;
+  /** Per-day daily schedules, keyed by 'YYYY-MM-DD'. Persisted across modal open/close. */
+  dailySchedules:    Map<string, DailySchedule>;
 }
 
 // ---------------------------------------------------------------------------
@@ -34,6 +40,7 @@ export function initApp(): void {
     overrides:      buildDemoOverrides(),
     schedule:       null,
     weeklyHoursMap: new Map(),
+    dailySchedules: new Map(),
   };
 
   // --- DOM refs ---
@@ -69,14 +76,18 @@ export function initApp(): void {
 
   yearInput.addEventListener('change', () => {
     state.year = parseInt(yearInput.value, 10) || 2026;
+    // Clear cached daily schedules when month changes
+    state.dailySchedules.clear();
   });
 
   monthSelect.addEventListener('change', () => {
     state.month = parseInt(monthSelect.value, 10);
+    state.dailySchedules.clear();
   });
 
   seedInput.addEventListener('change', () => {
     state.seed = parseInt(seedInput.value, 10) || 12345;
+    state.dailySchedules.clear();
   });
 
   shiftsFileInput.addEventListener('change', async () => {
@@ -103,6 +114,7 @@ export function initApp(): void {
       const parsed = parseEmployeesCSV(raw);
       if (parsed.length > 0) {
         state.employees = parsed;
+        state.dailySchedules.clear();
         setStatus(`✓ Employees file loaded: ${file.name} (${parsed.length} employees)`, 'success');
       } else {
         setStatus('⚠ No employees found in CSV.', 'error');
@@ -121,6 +133,8 @@ export function initApp(): void {
   });
 
   generateBtn.addEventListener('click', () => {
+    // Clear daily schedules when re-generating (monthly assignments may have changed)
+    state.dailySchedules.clear();
     runAndRender(state, calContainer, summaryEl, statusEl);
   });
 
@@ -141,10 +155,10 @@ export function initApp(): void {
 // ---------------------------------------------------------------------------
 
 function runAndRender(
-  state:       AppState,
-  calEl:       HTMLElement,
-  summaryEl:   HTMLElement,
-  statusEl:    HTMLElement,
+  state:     AppState,
+  calEl:     HTMLElement,
+  summaryEl: HTMLElement,
+  statusEl:  HTMLElement,
 ): void {
   const t0 = performance.now();
 
@@ -183,8 +197,34 @@ function runAndRender(
       }
     }
 
-    // Render calendar
-    renderCalendar(schedule, calEl, empMap);
+    // Day-click handler: open (or restore) daily schedule modal
+    const onDayClick = (day: Day) => {
+      if (day.isClosed) return;
+
+      const dateStr = toDateStr(day.date);
+
+      // Retrieve cached schedule or build a new one
+      if (!state.dailySchedules.has(dateStr)) {
+        state.dailySchedules.set(dateStr, buildDailySchedule(day, empMap));
+      }
+
+      const dailySched = state.dailySchedules.get(dateStr)!;
+
+      // Build the set of employee IDs currently in this daily schedule
+      const scheduledIds = new Set(dailySched.rows.map(r => r.employeeId));
+
+      showDailyModal(
+        dailySched,
+        schedule.employees,
+        scheduledIds,
+        // onChange: the schedule is mutated in place by the modal;
+        // we just need to ensure it stays in the map (it already does)
+        (updated) => { state.dailySchedules.set(updated.dateStr, updated); },
+      );
+    };
+
+    // Render calendar with click handler
+    renderCalendar(schedule, calEl, empMap, onDayClick);
 
     // Compute and render summary
     const summaryRows: WeeklySummaryRow[] = schedule.employees.map(emp => {
@@ -193,7 +233,7 @@ function runAndRender(
     });
     renderSummary(summaryRows, summaryEl, totalWeeks);
 
-    const elapsed = (performance.now() - t0).toFixed(0);
+    const elapsed    = (performance.now() - t0).toFixed(0);
     const unassigned = schedule.allDays
       .flatMap(d => d.assignments)
       .filter(s => !s.assignedEmployeeId).length;
@@ -244,4 +284,12 @@ function downloadText(content: string, filename: string, mime: string): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function toDateStr(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
 }

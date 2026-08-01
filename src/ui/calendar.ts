@@ -14,6 +14,7 @@ export function renderCalendar(
   schedule:    MonthSchedule,
   container:   HTMLElement,
   employeeMap: Map<string, Employee>,
+  onDayClick?: (day: Day) => void,
 ): void {
   container.innerHTML = '';
 
@@ -43,7 +44,7 @@ export function renderCalendar(
     row.className = 'calendar-row';
 
     for (const day of week) {
-      const cell = buildDayCell(day, employeeMap);
+      const cell = buildDayCell(day, employeeMap, onDayClick);
       row.appendChild(cell);
     }
 
@@ -60,6 +61,7 @@ export function renderCalendar(
 function buildDayCell(
   day:         Day | null,
   employeeMap: Map<string, Employee>,
+  onDayClick?: (day: Day) => void,
 ): HTMLElement {
   const cell = document.createElement('div');
 
@@ -87,11 +89,35 @@ function buildDayCell(
 
   cell.className = 'cal-cell cal-cell--open';
 
+  // If a click handler is provided, make the whole cell clickable
+  if (onDayClick) {
+    cell.classList.add('cal-cell--clickable');
+    cell.setAttribute('role', 'button');
+    cell.setAttribute('tabindex', '0');
+    cell.title = 'Click to open daily shift schedule';
+    cell.addEventListener('click', () => onDayClick(day));
+    cell.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onDayClick(day);
+      }
+    });
+  }
+
   // Date number
   const dateNum = document.createElement('span');
   dateNum.className = 'cal-date';
   dateNum.textContent = String(day.date.getDate());
   cell.appendChild(dateNum);
+
+  // "View daily schedule" hint (only when clickable)
+  if (onDayClick) {
+    const hint = document.createElement('span');
+    hint.className   = 'cal-daily-hint';
+    hint.textContent = '↗ daily';
+    hint.setAttribute('aria-hidden', 'true');
+    cell.appendChild(hint);
+  }
 
   // Hours badge
   const hoursBadge = document.createElement('span');
