@@ -453,9 +453,9 @@
     const def = SHIFT_DEFINITIONS[req.category];
     const start = req.coverageStart;
     const end = req.coverageEnd;
-    const window = end - start;
+    const window2 = end - start;
     if (def.requiredStatus === "FT" /* FullTime */) {
-      if (window <= 9) {
+      if (window2 <= 9) {
         return [makeSlot(def, start, start + 8)];
       }
       return [
@@ -671,6 +671,388 @@
         map.set(slot.assignedEmployeeId, slot.endHour);
       }
     }
+  }
+
+  // src/types/daily-schedule.ts
+  var DAILY_ROLES = [
+    "PIC",
+    "PIC/L",
+    "PIC/X",
+    "S",
+    "L/S",
+    "X/S",
+    "S/L",
+    "P",
+    "O",
+    "W",
+    "CALLS",
+    "BRKS",
+    "MAGS",
+    "ABC",
+    "I",
+    "HOLDS",
+    "PROG",
+    "SEC",
+    "OFFSITE",
+    "PLAN",
+    "TBD"
+  ];
+  var CATEGORY_TO_DAILY_ROLE = {
+    PIC: "PIC",
+    Accounts: "ABC",
+    Info: "I",
+    Welcome: "W",
+    Float: "P",
+    Support: "S",
+    Programming: "PROG"
+  };
+
+  // src/algorithm/daily-scheduler.ts
+  var MONTH_NAMES = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ];
+  var DOW_NAMES = [
+    "SUNDAY",
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY"
+  ];
+  function rotationIndex(hourOffset) {
+    const fullPeriods = Math.floor(hourOffset / 3);
+    const remainder = hourOffset % 3;
+    return fullPeriods * 2 + (remainder >= 2 ? 1 : 0);
+  }
+  function toDateStr2(date) {
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
+  }
+  function buildDailySchedule(day, employeeMap) {
+    const empIntervals = /* @__PURE__ */ new Map();
+    for (const slot of day.assignments) {
+      if (!slot.assignedEmployeeId) continue;
+      const empId = slot.assignedEmployeeId;
+      if (!empIntervals.has(empId)) empIntervals.set(empId, []);
+      empIntervals.get(empId).push({
+        startHour: slot.startHour,
+        endHour: slot.endHour,
+        category: slot.definition.category
+      });
+    }
+    const scheduledEmployees = [...empIntervals.keys()].map((id) => employeeMap.get(id)).filter((e) => e !== void 0).sort((a, b) => a.name.localeCompare(b.name));
+    const hours = [];
+    for (let h = day.openHour; h < day.closeHour; h++) {
+      hours.push(h);
+    }
+    const rows = scheduledEmployees.map((emp) => {
+      const intervals = empIntervals.get(emp.id);
+      const cells = hours.map((h, hIdx) => {
+        const activeInterval = intervals.find((iv) => h >= iv.startHour && h < iv.endHour);
+        if (!activeInterval) return null;
+        const onDutyThisHour = scheduledEmployees.filter((e) => {
+          const ivs = empIntervals.get(e.id);
+          return ivs.some((iv) => h >= iv.startHour && h < iv.endHour);
+        });
+        const rolePool = onDutyThisHour.map((e) => {
+          const ivs = empIntervals.get(e.id);
+          const iv = ivs.find((iv2) => h >= iv2.startHour && h < iv2.endHour);
+          return CATEGORY_TO_DAILY_ROLE[iv.category] ?? iv.category;
+        });
+        const offset = rotationIndex(hIdx);
+        const posInGroup = onDutyThisHour.indexOf(emp);
+        const roleIdx = (posInGroup + offset) % rolePool.length;
+        return { role: rolePool[roleIdx], locked: false };
+      });
+      return {
+        employeeId: emp.id,
+        employeeName: emp.name,
+        cells,
+        intervals
+      };
+    });
+    return {
+      dateStr: toDateStr2(day.date),
+      dayOfWeek: DOW_NAMES[day.date.getDay()],
+      dateLabel: `${MONTH_NAMES[day.date.getMonth()]} ${day.date.getDate()}, ${day.date.getFullYear()}`,
+      openHour: day.openHour,
+      closeHour: day.closeHour,
+      hours,
+      rows
+    };
+  }
+
+  // src/ui/daily-modal.ts
+  function showDailyModal(schedule, allEmployees, scheduledEmpIds, onChange) {
+    document.getElementById("daily-modal-overlay")?.remove();
+    document.removeEventListener("keydown", handleEscKey);
+    const overlay = document.createElement("div");
+    overlay.id = "daily-modal-overlay";
+    overlay.className = "daily-modal-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-labelledby", "daily-modal-title");
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeDailyModal();
+    });
+    const modal = document.createElement("div");
+    modal.className = "daily-modal";
+    modal.appendChild(buildHeader(schedule));
+    const gridWrap = document.createElement("div");
+    gridWrap.className = "daily-grid-wrapper";
+    const unscheduled = allEmployees.filter((e) => !scheduledEmpIds.has(e.id));
+    gridWrap.appendChild(buildGrid(schedule, unscheduled, onChange));
+    modal.appendChild(gridWrap);
+    overlay.appendChild(modal);
+    document.getElementById("app").appendChild(overlay);
+    document.addEventListener("keydown", handleEscKey);
+  }
+  function closeDailyModal() {
+    const overlay = document.getElementById("daily-modal-overlay");
+    if (overlay) {
+      overlay.classList.add("daily-modal--closing");
+      setTimeout(() => overlay.remove(), 200);
+    }
+    document.getElementById("emp-override-menu")?.remove();
+    document.removeEventListener("keydown", handleEscKey);
+  }
+  function handleEscKey(e) {
+    if (e.key === "Escape") closeDailyModal();
+  }
+  function buildHeader(schedule) {
+    const header = document.createElement("div");
+    header.className = "daily-modal-header";
+    const titleBlock = document.createElement("div");
+    titleBlock.className = "daily-title-block";
+    const title = document.createElement("h2");
+    title.id = "daily-modal-title";
+    title.className = "daily-modal-title";
+    title.textContent = `${schedule.dayOfWeek} Daily Shift Schedule`;
+    const dateLine = document.createElement("p");
+    dateLine.className = "daily-modal-date";
+    dateLine.textContent = schedule.dateLabel;
+    titleBlock.appendChild(title);
+    titleBlock.appendChild(dateLine);
+    const actions = document.createElement("div");
+    actions.className = "daily-modal-actions";
+    const printBtn = document.createElement("button");
+    printBtn.id = "daily-print-btn";
+    printBtn.className = "btn btn--ghost btn--sm";
+    printBtn.setAttribute("aria-label", "Print daily schedule");
+    printBtn.innerHTML = "\u{1F5A8}&thinsp;Print";
+    printBtn.addEventListener("click", () => printDailySchedule(schedule));
+    const closeBtn = document.createElement("button");
+    closeBtn.id = "daily-close-btn";
+    closeBtn.className = "btn btn--ghost btn--sm daily-close-btn";
+    closeBtn.setAttribute("aria-label", "Close daily schedule");
+    closeBtn.textContent = "\u2715";
+    closeBtn.addEventListener("click", closeDailyModal);
+    actions.appendChild(printBtn);
+    actions.appendChild(closeBtn);
+    header.appendChild(titleBlock);
+    header.appendChild(actions);
+    return header;
+  }
+  function buildGrid(schedule, unscheduled, onChange) {
+    const table = document.createElement("table");
+    table.className = "daily-grid";
+    table.id = "daily-grid-table";
+    const datalist = document.createElement("datalist");
+    datalist.id = "daily-roles-list";
+    for (const role of DAILY_ROLES) {
+      const opt = document.createElement("option");
+      opt.value = role;
+      datalist.appendChild(opt);
+    }
+    table.appendChild(datalist);
+    const thead = document.createElement("thead");
+    const headTr = document.createElement("tr");
+    const empTh = document.createElement("th");
+    empTh.className = "daily-th daily-col-emp";
+    empTh.textContent = "Employee";
+    headTr.appendChild(empTh);
+    for (const h of schedule.hours) {
+      const th = document.createElement("th");
+      th.className = "daily-th daily-col-hour";
+      th.textContent = `${h}:00`;
+      headTr.appendChild(th);
+    }
+    thead.appendChild(headTr);
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    schedule.rows.forEach((row, rowIdx) => {
+      const tr = document.createElement("tr");
+      tr.className = rowIdx % 2 === 0 ? "daily-row-even" : "daily-row-odd";
+      tr.dataset["rowIdx"] = String(rowIdx);
+      const empTd = document.createElement("td");
+      empTd.className = "daily-td daily-col-emp";
+      const empBtn = document.createElement("button");
+      empBtn.className = "daily-emp-btn";
+      empBtn.textContent = row.employeeName;
+      empBtn.title = unscheduled.length > 0 ? "Click to substitute with another employee (e.g. sick coverage)" : "No unscheduled employees available for substitution";
+      if (unscheduled.length > 0) {
+        empBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showEmpOverrideMenu(empBtn, row, unscheduled, schedule, onChange);
+        });
+      } else {
+        empBtn.classList.add("daily-emp-btn--no-sub");
+      }
+      empTd.appendChild(empBtn);
+      tr.appendChild(empTd);
+      row.cells.forEach((cell, colIdx) => {
+        const td = document.createElement("td");
+        td.className = "daily-td";
+        if (cell === null) {
+          td.classList.add("daily-cell--off");
+          td.setAttribute("aria-hidden", "true");
+        } else {
+          td.appendChild(buildCellInput(cell, row, colIdx, schedule, onChange));
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    return table;
+  }
+  function buildCellInput(cell, row, colIdx, schedule, onChange) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.setAttribute("list", "daily-roles-list");
+    input.value = cell.role;
+    input.className = "daily-cell-input" + (cell.locked ? " daily-cell-input--locked" : "");
+    input.setAttribute(
+      "aria-label",
+      `${row.employeeName} duty at ${schedule.hours[colIdx]}:00`
+    );
+    const commit = () => {
+      const val = input.value.trim();
+      cell.role = val || "TBD";
+      cell.locked = true;
+      input.value = cell.role;
+      input.classList.add("daily-cell-input--locked");
+      onChange(schedule);
+    };
+    input.addEventListener("change", commit);
+    input.addEventListener("blur", () => {
+      if (input.value !== cell.role) commit();
+    });
+    return input;
+  }
+  function showEmpOverrideMenu(anchor, row, unscheduled, schedule, onChange) {
+    document.getElementById("emp-override-menu")?.remove();
+    const menu = document.createElement("div");
+    menu.id = "emp-override-menu";
+    menu.className = "emp-override-menu";
+    menu.setAttribute("role", "listbox");
+    menu.setAttribute("aria-label", "Select substitute employee");
+    const menuTitle = document.createElement("div");
+    menuTitle.className = "emp-override-title";
+    menuTitle.textContent = "Substitute with:";
+    menu.appendChild(menuTitle);
+    const keepBtn = document.createElement("button");
+    keepBtn.className = "emp-override-item emp-override-item--current";
+    keepBtn.textContent = `\u2713 ${row.employeeName} (current)`;
+    keepBtn.setAttribute("role", "option");
+    keepBtn.addEventListener("click", () => menu.remove());
+    menu.appendChild(keepBtn);
+    for (const emp of unscheduled) {
+      const btn = document.createElement("button");
+      btn.className = "emp-override-item";
+      btn.textContent = `${emp.name} (${emp.status})`;
+      btn.setAttribute("role", "option");
+      btn.addEventListener("click", () => {
+        row.employeeId = emp.id;
+        row.employeeName = emp.name;
+        anchor.textContent = emp.name;
+        onChange(schedule);
+        menu.remove();
+      });
+      menu.appendChild(btn);
+    }
+    const overlay = document.getElementById("daily-modal-overlay");
+    const anchorRect = anchor.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
+    menu.style.top = `${anchorRect.bottom - overlayRect.top + 4}px`;
+    menu.style.left = `${anchorRect.left - overlayRect.left}px`;
+    overlay.appendChild(menu);
+    const closeMenu = (e) => {
+      if (!menu.contains(e.target) && e.target !== anchor) {
+        menu.remove();
+        document.removeEventListener("click", closeMenu);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", closeMenu), 0);
+  }
+  function printDailySchedule(schedule) {
+    const win = window.open("", "_blank", "width=1400,height=800");
+    if (!win) {
+      alert("Print blocked \u2014 please allow pop-ups for this site.");
+      return;
+    }
+    const headerCells = [
+      `<th class="ec">Employee</th>`,
+      ...schedule.hours.map((h) => `<th class="hc">${h}:00</th>`)
+    ].join("");
+    const bodyRows = schedule.rows.map((row) => {
+      const cells = row.cells.map((cell) => {
+        if (cell === null) return `<td class="off"></td>`;
+        return `<td class="dc">${esc(cell.role)}</td>`;
+      }).join("");
+      return `<tr><td class="en">${esc(row.employeeName)}</td>${cells}</tr>`;
+    }).join("\n");
+    win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>${esc(schedule.dayOfWeek)} Daily Shift Schedule \u2014 ${esc(schedule.dateLabel)}</title>
+  <style>
+    @page  { size: landscape; margin: 0.45in; }
+    *      { box-sizing: border-box; margin: 0; padding: 0; }
+    body   { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; background: #fff; }
+    h1     { font-size: 15px; font-weight: bold; margin-bottom: 2px; }
+    p.sub  { font-size: 10px; color: #555; margin-bottom: 8px; }
+    table  { border-collapse: collapse; width: 100%; table-layout: auto; }
+    th, td { border: 1px solid #000; padding: 2px 4px; vertical-align: middle; }
+    th     { background: #e0e0e0; font-weight: bold; white-space: nowrap; }
+    th.ec  { min-width: 120px; text-align: left; }
+    th.hc  { min-width: 52px; text-align: center; font-size: 10px; }
+    td.en  { font-weight: 600; white-space: nowrap; text-align: left; }
+    td.dc  { text-align: center; font-size: 10px; }
+    td.off { background: #f0f0f0; }
+    @media print { body { font-size: 10px; } }
+  </style>
+</head>
+<body>
+  <h1>${esc(schedule.dayOfWeek)} Daily Shift Schedule</h1>
+  <p class="sub">${esc(schedule.dateLabel)}</p>
+  <table>
+    <thead><tr>${headerCells}</tr></thead>
+    <tbody>${bodyRows}</tbody>
+  </table>
+  <script>window.onload = () => window.print();<\/script>
+</body>
+</html>`);
+    win.document.close();
+  }
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
   // src/data/demo.ts
@@ -1031,7 +1413,7 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
 
   // src/ui/calendar.ts
   var DAY_ABBRS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  function renderCalendar(schedule, container, employeeMap) {
+  function renderCalendar(schedule, container, employeeMap, onDayClick) {
     container.innerHTML = "";
     const heading = document.createElement("h2");
     heading.className = "calendar-heading";
@@ -1052,14 +1434,14 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
       const row = document.createElement("div");
       row.className = "calendar-row";
       for (const day of week) {
-        const cell = buildDayCell(day, employeeMap);
+        const cell = buildDayCell(day, employeeMap, onDayClick);
         row.appendChild(cell);
       }
       grid.appendChild(row);
     }
     container.appendChild(grid);
   }
-  function buildDayCell(day, employeeMap) {
+  function buildDayCell(day, employeeMap, onDayClick) {
     const cell = document.createElement("div");
     if (!day) {
       cell.className = "cal-cell cal-cell--empty";
@@ -1080,10 +1462,30 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
       return cell;
     }
     cell.className = "cal-cell cal-cell--open";
+    if (onDayClick) {
+      cell.classList.add("cal-cell--clickable");
+      cell.setAttribute("role", "button");
+      cell.setAttribute("tabindex", "0");
+      cell.title = "Click to open daily shift schedule";
+      cell.addEventListener("click", () => onDayClick(day));
+      cell.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onDayClick(day);
+        }
+      });
+    }
     const dateNum = document.createElement("span");
     dateNum.className = "cal-date";
     dateNum.textContent = String(day.date.getDate());
     cell.appendChild(dateNum);
+    if (onDayClick) {
+      const hint = document.createElement("span");
+      hint.className = "cal-daily-hint";
+      hint.textContent = "\u2197 daily";
+      hint.setAttribute("aria-hidden", "true");
+      cell.appendChild(hint);
+    }
     const hoursBadge = document.createElement("span");
     hoursBadge.className = "cal-hours";
     hoursBadge.textContent = `${day.openHour}:00\u2013${day.closeHour}:00`;
@@ -1237,7 +1639,8 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
       employees: getDemoEmployees(),
       overrides: buildDemoOverrides(),
       schedule: null,
-      weeklyHoursMap: /* @__PURE__ */ new Map()
+      weeklyHoursMap: /* @__PURE__ */ new Map(),
+      dailySchedules: /* @__PURE__ */ new Map()
     };
     const yearInput = getEl("year-input");
     const monthSelect = getEl("month-select");
@@ -1264,12 +1667,15 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
     seedInput.value = String(state.seed);
     yearInput.addEventListener("change", () => {
       state.year = parseInt(yearInput.value, 10) || 2026;
+      state.dailySchedules.clear();
     });
     monthSelect.addEventListener("change", () => {
       state.month = parseInt(monthSelect.value, 10);
+      state.dailySchedules.clear();
     });
     seedInput.addEventListener("change", () => {
       state.seed = parseInt(seedInput.value, 10) || 12345;
+      state.dailySchedules.clear();
     });
     shiftsFileInput.addEventListener("change", async () => {
       const file = shiftsFileInput.files?.[0];
@@ -1293,6 +1699,7 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
         const parsed = parseEmployeesCSV(raw);
         if (parsed.length > 0) {
           state.employees = parsed;
+          state.dailySchedules.clear();
           setStatus(`\u2713 Employees file loaded: ${file.name} (${parsed.length} employees)`, "success");
         } else {
           setStatus("\u26A0 No employees found in CSV.", "error");
@@ -1308,6 +1715,7 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
       downloadText(EMPLOYEES_CSV_TEMPLATE, "employees-template.csv", "text/csv");
     });
     generateBtn.addEventListener("click", () => {
+      state.dailySchedules.clear();
       runAndRender(state, calContainer, summaryEl, statusEl);
     });
     renderLegend(legendEl);
@@ -1345,7 +1753,26 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
           state.weeklyHoursMap.set(slot.assignedEmployeeId, arr);
         }
       }
-      renderCalendar(schedule, calEl, empMap);
+      const onDayClick = (day) => {
+        if (day.isClosed) return;
+        const dateStr = toDateStr3(day.date);
+        if (!state.dailySchedules.has(dateStr)) {
+          state.dailySchedules.set(dateStr, buildDailySchedule(day, empMap));
+        }
+        const dailySched = state.dailySchedules.get(dateStr);
+        const scheduledIds = new Set(dailySched.rows.map((r) => r.employeeId));
+        showDailyModal(
+          dailySched,
+          schedule.employees,
+          scheduledIds,
+          // onChange: the schedule is mutated in place by the modal;
+          // we just need to ensure it stays in the map (it already does)
+          (updated) => {
+            state.dailySchedules.set(updated.dateStr, updated);
+          }
+        );
+      };
+      renderCalendar(schedule, calEl, empMap, onDayClick);
       const summaryRows = schedule.employees.map((emp) => {
         const wh = state.weeklyHoursMap.get(emp.id) ?? new Array(totalWeeks).fill(0);
         return { employee: emp, weeklyHours: [...wh], totalHours: wh.reduce((a, b) => a + b, 0) };
@@ -1384,6 +1811,13 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+  function toDateStr3(date) {
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
   }
 
   // src/main.ts

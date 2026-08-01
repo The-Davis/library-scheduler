@@ -802,3 +802,309 @@ body {
   outline-offset: 2px;
   border-radius:  var(--r-sm);
 }
+
+/* --------------------------------------------------------------------------
+   16. Daily Schedule Modal
+   -------------------------------------------------------------------------- */
+
+/* ── Calendar cell click affordance ─────────────────────────────────────── */
+.cal-cell--clickable {
+  cursor: pointer;
+  transition: box-shadow var(--trans-med), transform var(--trans-med);
+}
+
+.cal-cell--clickable:hover {
+  box-shadow: inset 0 0 0 2px var(--col-primary);
+  transform:  translateY(-1px);
+  z-index:    1;
+}
+
+.cal-daily-hint {
+  position:    absolute;
+  top:         6px;
+  right:       8px;
+  font-size:   0.6rem;
+  font-weight: 600;
+  color:       var(--col-primary);
+  opacity:     0;
+  letter-spacing: 0.04em;
+  transition:  opacity var(--trans-fast);
+  pointer-events: none;
+}
+
+.cal-cell--clickable { position: relative; }
+
+.cal-cell--clickable:hover .cal-daily-hint { opacity: 0.8; }
+
+/* ── Overlay backdrop ────────────────────────────────────────────────────── */
+.daily-modal-overlay {
+  position:   fixed;
+  inset:      0;
+  background: rgba(5, 5, 18, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index:    1000;
+  display:    flex;
+  align-items: center;
+  justify-content: center;
+  padding:    var(--sp-4);
+  animation:  overlayFadeIn 0.18s ease;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.daily-modal--closing { animation: overlayFadeOut 0.18s ease forwards; }
+
+@keyframes overlayFadeOut {
+  to { opacity: 0; }
+}
+
+/* ── Modal card ──────────────────────────────────────────────────────────── */
+.daily-modal {
+  background:    var(--col-bg-surface);
+  border:        1px solid var(--col-border-hi);
+  border-radius: var(--r-xl);
+  box-shadow:    0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+  width:         min(96vw, 1500px);
+  max-height:    90vh;
+  display:       flex;
+  flex-direction: column;
+  overflow:      hidden;
+  animation:     modalSlideUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes modalSlideUp {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+/* ── Modal header ────────────────────────────────────────────────────────── */
+.daily-modal-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             var(--sp-4);
+  padding:         var(--sp-4) var(--sp-6);
+  border-bottom:   1px solid var(--col-border);
+  flex-shrink:     0;
+}
+
+.daily-title-block { flex: 1; min-width: 0; }
+
+.daily-modal-title {
+  font-size:      clamp(1rem, 2vw, 1.4rem);
+  font-weight:    800;
+  letter-spacing: -0.03em;
+  background:     linear-gradient(135deg, hsl(245, 85%, 75%), hsl(195, 85%, 65%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip:         text;
+  margin:         0;
+}
+
+.daily-modal-date {
+  font-size:  var(--text-sm);
+  color:      var(--col-text-3);
+  margin:     2px 0 0 0;
+}
+
+.daily-modal-actions {
+  display: flex;
+  gap:     var(--sp-2);
+  flex-shrink: 0;
+}
+
+.daily-close-btn {
+  font-size:  1rem;
+  line-height: 1;
+  padding:    6px 10px;
+}
+
+/* ── Scrollable grid area ────────────────────────────────────────────────── */
+.daily-grid-wrapper {
+  overflow: auto;
+  flex:     1;
+  padding:  var(--sp-3);
+  /* Custom scrollbar styling already handled globally */
+}
+
+/* ── Grid table ──────────────────────────────────────────────────────────── */
+.daily-grid {
+  border-collapse: collapse;
+  min-width:       100%;
+  font-size:       var(--text-sm);
+}
+
+/* Header cells */
+.daily-th {
+  position:       sticky;
+  top:            0;
+  z-index:        2;
+  background:     var(--col-bg-surface);
+  padding:        6px 4px;
+  font-size:      0.65rem;
+  font-weight:    700;
+  color:          var(--col-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space:    nowrap;
+  border-bottom:  2px solid var(--col-border);
+  text-align:     center;
+}
+
+/* Employee name column */
+.daily-col-emp {
+  position:   sticky;
+  left:       0;
+  z-index:    3;
+  min-width:  145px;
+  max-width:  170px;
+  background: var(--col-bg-surface);
+}
+
+/* Corner: both sticky top and left */
+.daily-th.daily-col-emp { z-index: 4; }
+
+/* Hour columns */
+.daily-col-hour { min-width: 68px; }
+
+/* Body cells */
+.daily-td {
+  border:          1px solid hsla(220, 20%, 25%, 0.5);
+  padding:         2px;
+  vertical-align:  middle;
+  height:          38px;
+}
+
+.daily-td.daily-col-emp {
+  padding:    2px 4px;
+  border-right: 2px solid var(--col-border-hi);
+}
+
+/* Off-duty cell */
+.daily-cell--off {
+  background: hsla(220, 15%, 8%, 0.6);
+}
+
+/* Row striping — apply to sticky column too */
+.daily-row-even .daily-col-emp { background: var(--col-bg-card); }
+.daily-row-odd  .daily-col-emp { background: hsla(225, 20%, 13%, 0.9); }
+
+/* ── Employee name button ────────────────────────────────────────────────── */
+.daily-emp-btn {
+  background:    none;
+  border:        none;
+  color:         var(--col-text-1);
+  font-size:     var(--text-sm);
+  font-family:   var(--font-body);
+  font-weight:   500;
+  cursor:        pointer;
+  padding:       4px 6px;
+  width:         100%;
+  text-align:    left;
+  border-radius: var(--r-sm);
+  transition:    background var(--trans-fast);
+  white-space:   nowrap;
+  overflow:      hidden;
+  text-overflow: ellipsis;
+}
+
+.daily-emp-btn:not(.daily-emp-btn--no-sub)::after {
+  content:      ' ▾';
+  font-size:    0.6em;
+  opacity:      0.45;
+  margin-left:  2px;
+}
+
+.daily-emp-btn:hover:not(.daily-emp-btn--no-sub) {
+  background: hsla(245, 55%, 55%, 0.18);
+}
+
+/* ── Duty-code cell input ────────────────────────────────────────────────── */
+.daily-cell-input {
+  background:    transparent;
+  border:        none;
+  color:         var(--col-text-1);
+  font-size:     0.72rem;
+  font-family:   var(--font-mono);
+  font-weight:   600;
+  width:         100%;
+  text-align:    center;
+  padding:       4px 2px;
+  border-radius: var(--r-sm);
+  cursor:        pointer;
+  transition:    background var(--trans-fast), box-shadow var(--trans-fast);
+  letter-spacing: 0.03em;
+}
+
+.daily-cell-input:hover {
+  background: hsla(245, 40%, 35%, 0.3);
+}
+
+.daily-cell-input:focus {
+  background: hsla(245, 40%, 35%, 0.5);
+  outline:    none;
+  box-shadow: 0 0 0 2px var(--col-primary);
+}
+
+/* Locked (user-overridden) cells shown in accent colour */
+.daily-cell-input--locked {
+  color: hsl(195, 85%, 65%);
+}
+
+/* ── Employee override dropdown menu ─────────────────────────────────────── */
+.emp-override-menu {
+  position:        absolute;
+  background:      var(--col-bg-card);
+  border:          1px solid var(--col-border-hi);
+  border-radius:   var(--r-md);
+  box-shadow:      0 16px 48px rgba(0,0,0,0.5);
+  z-index:         2000;
+  min-width:       200px;
+  max-height:      320px;
+  overflow-y:      auto;
+  padding:         var(--sp-2);
+}
+
+.emp-override-title {
+  font-size:      0.62rem;
+  color:          var(--col-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  padding:        4px var(--sp-2) 6px;
+  border-bottom:  1px solid var(--col-border);
+  margin-bottom:  4px;
+}
+
+.emp-override-item {
+  display:       block;
+  width:         100%;
+  text-align:    left;
+  background:    none;
+  border:        none;
+  color:         var(--col-text-1);
+  font-size:     var(--text-sm);
+  font-family:   var(--font-body);
+  padding:       6px var(--sp-3);
+  border-radius: var(--r-sm);
+  cursor:        pointer;
+  transition:    background var(--trans-fast);
+}
+
+.emp-override-item:hover {
+  background: hsla(245, 55%, 55%, 0.2);
+}
+
+.emp-override-item--current {
+  color:       hsl(195, 85%, 65%);
+  font-weight: 600;
+}
+
+/* ── Print styles ────────────────────────────────────────────────────────── */
+@media print {
+  /* Hide everything except the print window (which is its own page) */
+}
+
