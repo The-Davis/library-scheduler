@@ -206,25 +206,67 @@ export interface WeeklySummaryRow {
   totalHours:  number;
 }
 
+/** Context passed alongside the summary rows so the section can self-contain print/export */
+export interface SummaryContext {
+  year:  number;
+  month: number; // 0-indexed
+}
+
 export function renderSummary(
   rows:      WeeklySummaryRow[],
   container: HTMLElement,
   numWeeks:  number,
+  ctx:       SummaryContext,
 ): void {
   container.innerHTML = '';
 
-  const heading = document.createElement('h3');
-  heading.className = 'summary-heading';
-  heading.textContent = 'Employee Hour Summary';
-  container.appendChild(heading);
+  // ── Heading + action buttons ──────────────────────────────────────────────
+  const headingRow = document.createElement('div');
+  headingRow.className = 'summary-heading-row';
 
+  const heading = document.createElement('h3');
+  heading.className   = 'summary-heading';
+  heading.textContent = 'Employee Hour Summary';
+
+  const actions = document.createElement('div');
+  actions.className = 'summary-actions';
+
+  const printBtn = document.createElement('button');
+  printBtn.id        = 'summary-print-btn';
+  printBtn.className = 'btn btn--ghost btn--sm';
+  printBtn.innerHTML = '🖨&thinsp;Print';
+  printBtn.setAttribute('aria-label', 'Print employee hour summary');
+
+  const dlBtn = document.createElement('button');
+  dlBtn.id        = 'summary-download-btn';
+  dlBtn.className = 'btn btn--ghost btn--sm';
+  dlBtn.innerHTML = '⬇&thinsp;CSV';
+  dlBtn.setAttribute('aria-label', 'Download employee hour summary as CSV');
+
+  actions.appendChild(printBtn);
+  actions.appendChild(dlBtn);
+  headingRow.appendChild(heading);
+  headingRow.appendChild(actions);
+  container.appendChild(headingRow);
+
+  // ── Build sorted rows (FT first, then alpha) ──────────────────────────────
+  const sorted = [...rows].sort((a, b) => {
+    if (a.employee.status !== b.employee.status) {
+      return a.employee.status === 'FT' ? -1 : 1;
+    }
+    return a.employee.name.localeCompare(b.employee.name);
+  });
+
+  const weekCols = Array.from({ length: numWeeks }, (_, i) => `Wk ${i + 1}`);
+  const cols     = ['Employee', 'Status', ...weekCols, 'Total'];
+
+  // ── Table ─────────────────────────────────────────────────────────────────
   const table = document.createElement('table');
+  table.id        = 'summary-table';
   table.className = 'summary-table';
 
-  // Header
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
-  const cols = ['Employee', 'Status', ...Array.from({ length: numWeeks }, (_, i) => `Wk ${i + 1}`), 'Total'];
   for (const col of cols) {
     const th = document.createElement('th');
     th.textContent = col;
@@ -233,16 +275,7 @@ export function renderSummary(
   thead.appendChild(headerRow);
   table.appendChild(thead);
 
-  // Body
   const tbody = document.createElement('tbody');
-
-  // Sort: FT first, then PT
-  const sorted = [...rows].sort((a, b) => {
-    if (a.employee.status !== b.employee.status) {
-      return a.employee.status === 'FT' ? -1 : 1;
-    }
-    return a.employee.name.localeCompare(b.employee.name);
-  });
 
   for (const row of sorted) {
     const tr = document.createElement('tr');
@@ -276,6 +309,132 @@ export function renderSummary(
 
   table.appendChild(tbody);
   container.appendChild(table);
+
+  // ── Wire buttons (after table is in DOM so data is available) ────────────
+  printBtn.addEventListener('click', () =>
+    printSummary(sorted, cols, ctx),
+  );
+  dlBtn.addEventListener('click', () =>
+    downloadSummaryCSV(sorted, numWeeks, ctx),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Print — opens a clean B&W landscape window
+// ---------------------------------------------------------------------------
+
+const MONTH_NAMES_FULL = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function printSummary(
+  sorted: WeeklySummaryRow[],
+  cols:   string[],
+  ctx:    SummaryContext,
+): void {
+  const win = window.open('', '_blank', 'width=1100,height=750');
+  if (!win) { alert('Print blocked — please allow pop-ups for this site.'); return; }
+
+  const monthLabel = MONTH_NAMES_FULL[ctx.month];
+  const title      = `${monthLabel} ${ctx.year} — Employee Hour Summary`;
+
+  const headerHtml = cols
+    .map(c => `<th>${escSummary(c)}</th>`)
+    .join('');
+
+  const bodyHtml = sorted.map(row => {
+    const statusCell = `<td>${escSummary(row.employee.status)}</td>`;
+    const weekCells  = row.weeklyHours
+      .map(h => `<td class="num">${h > 0 ? h : '–'}</td>`)
+      .join('');
+    const totalCell  = `<td class="num total">${row.totalHours}</td>`;
+    const ftClass    = row.employee.status === 'FT' ? ' class="ft"' : '';
+    return `<tr${ftClass}><td>${escSummary(row.employee.name)}</td>${statusCell}${weekCells}${totalCell}</tr>`;
+  }).join('\n');
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escSummary(title)}</title>
+  <style>
+    @page  { size: landscape; margin: 0.5in; }
+    *      { box-sizing: border-box; margin: 0; padding: 0; }
+    body   { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #000; background: #fff; }
+    h1     { font-size: 14px; font-weight: bold; margin-bottom: 8px; }
+    table  { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #000; padding: 3px 6px; }
+    th     { background: #d8d8d8; font-weight: bold; text-align: left; }
+    td.num { text-align: right; }
+    td.total { font-weight: bold; background: #f0f0f0; }
+    tr.ft td:first-child { font-weight: 700; }
+    tr:nth-child(even) { background: #f8f8f8; }
+  </style>
+</head>
+<body>
+  <h1>${escSummary(title)}</h1>
+  <table>
+    <thead><tr>${headerHtml}</tr></thead>
+    <tbody>${bodyHtml}</tbody>
+  </table>
+  <script>window.onload = () => window.print();<\/script>
+</body>
+</html>`);
+  win.document.close();
+}
+
+// ---------------------------------------------------------------------------
+// CSV download
+// ---------------------------------------------------------------------------
+
+function downloadSummaryCSV(
+  sorted:   WeeklySummaryRow[],
+  numWeeks: number,
+  ctx:      SummaryContext,
+): void {
+  const monthSlug = MONTH_NAMES_FULL[ctx.month].toLowerCase();
+  const filename  = `${ctx.year}_${monthSlug}_employee_hour_summary.csv`;
+
+  const weekHeaders = Array.from({ length: numWeeks }, (_, i) => `Wk ${i + 1}`);
+  const header = ['Employee', 'Status', ...weekHeaders, 'Total Hours'];
+
+  const dataRows = sorted.map(row => [
+    row.employee.name,
+    row.employee.status,
+    ...row.weeklyHours.map(h => String(h)),
+    String(row.totalHours),
+  ]);
+
+  const csv = [header, ...dataRows]
+    .map(r => r.map(cell => csvCell(cell)).join(','))
+    .join('\r\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** Wrap a cell value in quotes if it contains commas, quotes, or newlines */
+function csvCell(value: string): string {
+  if (/[,"\r\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function escSummary(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ---------------------------------------------------------------------------

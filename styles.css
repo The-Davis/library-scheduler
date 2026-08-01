@@ -629,13 +629,28 @@ body {
   box-shadow:    var(--shadow-md);
 }
 
-.summary-heading {
-  padding:       var(--sp-4) var(--sp-6);
-  font-size:     var(--text-lg);
-  font-weight:   700;
-  border-bottom: 1px solid var(--col-border);
-  background:    var(--col-bg-glass);
+.summary-heading-row {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             var(--sp-3);
+  padding:         var(--sp-3) var(--sp-6);
+  border-bottom:   1px solid var(--col-border);
+  background:      var(--col-bg-glass);
 }
+
+.summary-heading {
+  font-size:   var(--text-lg);
+  font-weight: 700;
+  margin:      0;
+}
+
+.summary-actions {
+  display:     flex;
+  gap:         var(--sp-2);
+  flex-shrink: 0;
+}
+
 
 .summary-table {
   width:           100%;

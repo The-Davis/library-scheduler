@@ -8,7 +8,7 @@ import { showDailyModal } from './daily-modal';
 import { getDemoEmployees, getDemoProgrammingDays } from '../data/demo';
 import { parseShiftsCSV, SHIFTS_CSV_TEMPLATE } from '../parsers/csv-shifts';
 import { parseEmployeesCSV, EMPLOYEES_CSV_TEMPLATE } from '../parsers/csv-employees';
-import { renderCalendar, renderSummary, renderLegend, WeeklySummaryRow } from './calendar';
+import { renderCalendar, renderSummary, renderLegend, WeeklySummaryRow, SummaryContext } from './calendar';
 import { getCalendarWeekIndex } from '../types/day';
 
 // ---------------------------------------------------------------------------
@@ -231,7 +231,8 @@ function runAndRender(
       const wh = state.weeklyHoursMap.get(emp.id) ?? new Array(totalWeeks).fill(0);
       return { employee: emp, weeklyHours: [...wh], totalHours: wh.reduce((a, b) => a + b, 0) };
     });
-    renderSummary(summaryRows, summaryEl, totalWeeks);
+    const summaryCtx: SummaryContext = { year: state.year, month: state.month };
+    renderSummary(summaryRows, summaryEl, totalWeeks, summaryCtx);
 
     const elapsed    = (performance.now() - t0).toFixed(0);
     const unassigned = schedule.allDays
