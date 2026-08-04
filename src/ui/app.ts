@@ -11,6 +11,7 @@ import { parseEmployeesCSV, EMPLOYEES_CSV_TEMPLATE } from '../parsers/csv-employ
 import { renderCalendar, renderSummary, renderLegend, WeeklySummaryRow, SummaryContext } from './calendar';
 import { getCalendarWeekIndex } from '../types/day';
 import { showRosterEditor } from './roster-editor';
+import { showShiftEditor } from './shift-editor';
 
 // ---------------------------------------------------------------------------
 // App state
@@ -49,6 +50,7 @@ export function initApp(): void {
   const monthSelect     = getEl<HTMLSelectElement>('month-select');
   const seedInput       = getEl<HTMLInputElement>('seed-input');
   const generateBtn     = getEl<HTMLButtonElement>('generate-btn');
+  const editShiftsBtn   = getEl<HTMLButtonElement>('edit-shifts-btn');
   const shiftsFileInput = getEl<HTMLInputElement>('shifts-file');
   const empFileInput    = getEl<HTMLInputElement>('employees-file');
   const calContainer    = getEl<HTMLElement>('calendar-container');
@@ -137,6 +139,14 @@ export function initApp(): void {
     // Clear daily schedules when re-generating (monthly assignments may have changed)
     state.dailySchedules.clear();
     runAndRender(state, calContainer, summaryEl, statusEl);
+  });
+
+  editShiftsBtn.addEventListener('click', () => {
+    showShiftEditor(state, (newOverrides) => {
+      state.overrides = newOverrides;
+      state.dailySchedules.clear();
+      runAndRender(state, calContainer, summaryEl, statusEl);
+    });
   });
 
   // --- Render legend (static, doesn't depend on schedule) ---
