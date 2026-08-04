@@ -1,5 +1,6 @@
 import { DailySchedule, DailyRow, DailyCell, DAILY_ROLES } from '../types/daily-schedule';
 import { Employee } from '../types/employee';
+import { formatTime } from './utils';
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -162,7 +163,7 @@ function buildGrid(
   for (const h of schedule.hours) {
     const th = document.createElement('th');
     th.className   = 'daily-th daily-col-hour';
-    th.textContent = `${h}:00`;
+    th.textContent = formatTime(h);
     headTr.appendChild(th);
   }
 
@@ -241,7 +242,7 @@ function buildCellInput(
   input.className = 'daily-cell-input' + (cell.locked ? ' daily-cell-input--locked' : '');
   input.setAttribute(
     'aria-label',
-    `${row.employeeName} duty at ${schedule.hours[colIdx]}:00`,
+    `${row.employeeName} duty at ${formatTime(schedule.hours[colIdx])}`,
   );
 
   // Commit on change (dropdown select or blur after typing)
@@ -344,7 +345,7 @@ function printDailySchedule(schedule: DailySchedule): void {
 
   const headerCells = [
     `<th class="ec">Employee</th>`,
-    ...schedule.hours.map(h => `<th class="hc">${h}:00</th>`),
+    ...schedule.hours.map(h => `<th class="hc">${formatTime(h)}</th>`),
   ].join('');
 
   const bodyRows = schedule.rows.map(row => {

@@ -2,6 +2,7 @@ import { MonthSchedule, monthName } from '../types/schedule';
 import { Day } from '../types/day';
 import { ShiftSlot, SHIFT_DEFINITIONS, ShiftCategory } from '../types/shift';
 import { Employee } from '../types/employee';
+import { formatTime } from './utils';
 
 // ---------------------------------------------------------------------------
 // Calendar renderer
@@ -136,7 +137,7 @@ function buildDayCell(
   // Hours badge
   const hoursBadge = document.createElement('span');
   hoursBadge.className = 'cal-hours';
-  hoursBadge.textContent = `${day.openHour}:00–${day.closeHour}:00`;
+  hoursBadge.textContent = `${formatTime(day.openHour)} – ${formatTime(day.closeHour)}`;
   cell.appendChild(hoursBadge);
 
   // Shift assignments grouped by category
@@ -197,15 +198,15 @@ function buildShiftChip(
 
   const time = document.createElement('span');
   time.className = 'chip-time';
-  time.textContent = `${slot.startHour}:00–${slot.endHour}:00 (${dur}h)`;
+  time.textContent = `${formatTime(slot.startHour)} – ${formatTime(slot.endHour)} (${dur}h)`;
 
   chip.appendChild(name);
   chip.appendChild(time);
 
   // Tooltip with details
   chip.title = emp
-    ? `${emp.name} | ${slot.definition.label} | ${slot.startHour}:00–${slot.endHour}:00 (${dur}h) | ${emp.status}`
-    : `Unassigned | ${slot.definition.label} | ${slot.startHour}:00–${slot.endHour}:00`;
+    ? `${emp.name} | ${slot.definition.label} | ${formatTime(slot.startHour)} – ${formatTime(slot.endHour)} (${dur}h) | ${emp.status}`
+    : `Unassigned | ${slot.definition.label} | ${formatTime(slot.startHour)} – ${formatTime(slot.endHour)}`;
 
   return chip;
 }
@@ -533,7 +534,7 @@ function printCalendar(
       const entries = sorted.map(slot => {
         const emp  = employeeMap.get(slot.assignedEmployeeId!);
         const name = emp ? escCal(emp.name) : '<em>Unassigned</em>';
-        return `<div class="entry">${name} <span class="hrs">${slot.startHour}:00–${slot.endHour}:00</span></div>`;
+        return `<div class="entry">${name} <span class="hrs">${formatTime(slot.startHour)} – ${formatTime(slot.endHour)}</span></div>`;
       }).join('');
 
       return `<td><span class="dn">${day.date.getDate()}</span>${entries}</td>`;

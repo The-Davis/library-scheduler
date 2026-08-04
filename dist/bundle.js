@@ -803,6 +803,13 @@
     };
   }
 
+  // src/ui/utils.ts
+  function formatTime(hour24) {
+    const h = hour24 % 12 || 12;
+    const ampm = hour24 >= 12 ? "PM" : "AM";
+    return `${h}:00 ${ampm}`;
+  }
+
   // src/ui/daily-modal.ts
   function showDailyModal(schedule, allEmployees, scheduledEmpIds, onChange) {
     document.getElementById("daily-modal-overlay")?.remove();
@@ -895,7 +902,7 @@
     for (const h of schedule.hours) {
       const th = document.createElement("th");
       th.className = "daily-th daily-col-hour";
-      th.textContent = `${h}:00`;
+      th.textContent = formatTime(h);
       headTr.appendChild(th);
     }
     thead.appendChild(headTr);
@@ -945,7 +952,7 @@
     input.className = "daily-cell-input" + (cell.locked ? " daily-cell-input--locked" : "");
     input.setAttribute(
       "aria-label",
-      `${row.employeeName} duty at ${schedule.hours[colIdx]}:00`
+      `${row.employeeName} duty at ${formatTime(schedule.hours[colIdx])}`
     );
     const commit = () => {
       const val = input.value.trim();
@@ -1014,7 +1021,7 @@
     }
     const headerCells = [
       `<th class="ec">Employee</th>`,
-      ...schedule.hours.map((h) => `<th class="hc">${h}:00</th>`)
+      ...schedule.hours.map((h) => `<th class="hc">${formatTime(h)}</th>`)
     ].join("");
     const bodyRows = schedule.rows.map((row) => {
       const cells = row.cells.map((cell) => {
@@ -1513,7 +1520,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
     }
     const hoursBadge = document.createElement("span");
     hoursBadge.className = "cal-hours";
-    hoursBadge.textContent = `${day.openHour}:00\u2013${day.closeHour}:00`;
+    hoursBadge.textContent = `${formatTime(day.openHour)} \u2013 ${formatTime(day.closeHour)}`;
     cell.appendChild(hoursBadge);
     const grouped = groupByCategory(day.assignments);
     const catOrder = [
@@ -1558,10 +1565,10 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
     if (!emp) chip.classList.add("cal-shift-chip--unassigned");
     const time = document.createElement("span");
     time.className = "chip-time";
-    time.textContent = `${slot.startHour}:00\u2013${slot.endHour}:00 (${dur}h)`;
+    time.textContent = `${formatTime(slot.startHour)} \u2013 ${formatTime(slot.endHour)} (${dur}h)`;
     chip.appendChild(name);
     chip.appendChild(time);
-    chip.title = emp ? `${emp.name} | ${slot.definition.label} | ${slot.startHour}:00\u2013${slot.endHour}:00 (${dur}h) | ${emp.status}` : `Unassigned | ${slot.definition.label} | ${slot.startHour}:00\u2013${slot.endHour}:00`;
+    chip.title = emp ? `${emp.name} | ${slot.definition.label} | ${formatTime(slot.startHour)} \u2013 ${formatTime(slot.endHour)} (${dur}h) | ${emp.status}` : `Unassigned | ${slot.definition.label} | ${formatTime(slot.startHour)} \u2013 ${formatTime(slot.endHour)}`;
     return chip;
   }
   function renderSummary(rows, container, numWeeks, ctx) {
@@ -1799,7 +1806,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
         const entries = sorted.map((slot) => {
           const emp = employeeMap.get(slot.assignedEmployeeId);
           const name = emp ? escCal(emp.name) : "<em>Unassigned</em>";
-          return `<div class="entry">${name} <span class="hrs">${slot.startHour}:00\u2013${slot.endHour}:00</span></div>`;
+          return `<div class="entry">${name} <span class="hrs">${formatTime(slot.startHour)} \u2013 ${formatTime(slot.endHour)}</span></div>`;
         }).join("");
         return `<td><span class="dn">${day.date.getDate()}</span>${entries}</td>`;
       }).join("");
