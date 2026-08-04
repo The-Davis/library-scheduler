@@ -1902,20 +1902,27 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
   }
   function showRosterEditor(currentEmployees, onSave) {
     const overlay = document.createElement("div");
-    overlay.className = "modal-overlay";
+    overlay.className = "daily-modal-overlay";
     overlay.id = "roster-modal-overlay";
     const modal = document.createElement("div");
-    modal.className = "modal-content roster-modal-content";
+    modal.className = "daily-modal roster-modal-content";
     const header = document.createElement("div");
-    header.className = "modal-header";
+    header.className = "daily-modal-header";
+    const titleBlock = document.createElement("div");
+    titleBlock.className = "daily-title-block";
     const title = document.createElement("h2");
+    title.className = "daily-modal-title";
     title.textContent = "Edit Roster";
-    header.appendChild(title);
+    titleBlock.appendChild(title);
+    header.appendChild(titleBlock);
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "daily-modal-actions";
     const closeBtn = document.createElement("button");
-    closeBtn.className = "modal-close-btn";
+    closeBtn.className = "btn btn--ghost daily-close-btn";
     closeBtn.innerHTML = "&times;";
     closeBtn.addEventListener("click", () => overlay.remove());
-    header.appendChild(closeBtn);
+    actionsDiv.appendChild(closeBtn);
+    header.appendChild(actionsDiv);
     modal.appendChild(header);
     const table = document.createElement("table");
     table.className = "roster-table";
