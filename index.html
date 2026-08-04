@@ -67,9 +67,14 @@
                    aria-label="Enter random seed" />
           </div>
 
-          <button id="generate-btn" class="btn btn--primary" type="button">
-            <span class="btn-icon">▶</span> Generate Schedule
-          </button>
+          <div class="ctrl-btn-group" style="display: flex; gap: 8px;">
+            <button id="generate-btn" class="btn btn--primary" type="button" style="flex: 1;">
+              <span class="btn-icon">▶</span> Generate Schedule
+            </button>
+            <button id="edit-shifts-btn" class="btn btn--secondary" type="button" aria-label="Edit Shift Requirements" title="Edit Shift Requirements">
+              <span class="btn-icon">🗓️</span> Edit Shifts
+            </button>
+          </div>
         </section>
 
         <!-- CSV Uploads -->
