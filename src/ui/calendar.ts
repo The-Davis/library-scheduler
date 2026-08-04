@@ -225,6 +225,7 @@ export interface WeeklySummaryRow {
 export interface SummaryContext {
   year:  number;
   month: number; // 0-indexed
+  onEditRoster: () => void;
 }
 
 export function renderSummary(
@@ -258,6 +259,14 @@ export function renderSummary(
   dlBtn.innerHTML = '⬇&thinsp;CSV';
   dlBtn.setAttribute('aria-label', 'Download employee hour summary as CSV');
 
+  const editBtn = document.createElement('button');
+  editBtn.id        = 'summary-edit-roster-btn';
+  editBtn.className = 'btn btn--ghost btn--sm';
+  editBtn.innerHTML = '✏️&thinsp;Edit Roster';
+  editBtn.setAttribute('aria-label', 'Edit the employee roster');
+  editBtn.addEventListener('click', () => ctx.onEditRoster());
+
+  actions.appendChild(editBtn);
   actions.appendChild(printBtn);
   actions.appendChild(dlBtn);
   headingRow.appendChild(heading);

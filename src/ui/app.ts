@@ -10,6 +10,7 @@ import { parseShiftsCSV, SHIFTS_CSV_TEMPLATE } from '../parsers/csv-shifts';
 import { parseEmployeesCSV, EMPLOYEES_CSV_TEMPLATE } from '../parsers/csv-employees';
 import { renderCalendar, renderSummary, renderLegend, WeeklySummaryRow, SummaryContext } from './calendar';
 import { getCalendarWeekIndex } from '../types/day';
+import { showRosterEditor } from './roster-editor';
 
 // ---------------------------------------------------------------------------
 // App state
@@ -231,7 +232,18 @@ function runAndRender(
       const wh = state.weeklyHoursMap.get(emp.id) ?? new Array(totalWeeks).fill(0);
       return { employee: emp, weeklyHours: [...wh], totalHours: wh.reduce((a, b) => a + b, 0) };
     });
-    const summaryCtx: SummaryContext = { year: state.year, month: state.month };
+    const summaryCtx: SummaryContext = { 
+      year: state.year, 
+      month: state.month,
+      onEditRoster: () => {
+        showRosterEditor(state.employees, (updatedEmployees) => {
+          state.employees = updatedEmployees;
+          // Re-generate schedule and re-render
+          state.dailySchedules.clear();
+          runAndRender(state, calEl, summaryEl, statusEl);
+        });
+      }
+    };
     renderSummary(summaryRows, summaryEl, totalWeeks, summaryCtx);
 
     const elapsed    = (performance.now() - t0).toFixed(0);
