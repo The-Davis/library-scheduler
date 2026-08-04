@@ -1961,7 +1961,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
       return names;
     };
     const validateAllRows = () => {
-      const inputs = tbody.querySelectorAll('input[type="text"]');
+      const inputs = tbody.querySelectorAll('input[data-coworker="true"]');
       inputs.forEach((el) => el.dispatchEvent(new Event("input")));
     };
     function addRow(init) {
@@ -2033,7 +2033,9 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
       const idToName = new Map(currentEmployees.map((e) => [e.id, e.name]));
       const toNames = (ids) => ids ? ids.map((id) => idToName.get(id) || id).join("|") : "";
       const inpPrefCo = createInput(toNames(init?.preferredCoworkers), "e.g. Alice", coValidator);
+      inpPrefCo.dataset.coworker = "true";
       const inpAvoidCo = createInput(toNames(init?.avoidCoworkers), "e.g. Bob", coValidator);
+      inpAvoidCo.dataset.coworker = "true";
       const selCloseOpen = createSelect(["prefer", "avoid", "neutral"], init?.closeThenOpenPref ?? "neutral");
       const tdAction = document.createElement("td");
       const btnRemove = document.createElement("button");
