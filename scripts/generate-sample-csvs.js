@@ -132,6 +132,7 @@ const ftEmployees = [
   {
     name:               'Jordan Hayes',
     status:             'FT',
+    shiftSizes:         '',
     minHours:           40,
     maxHours:           40,
     notAvailDays:       '',
@@ -143,6 +144,7 @@ const ftEmployees = [
   {
     name:               'Morgan Ellis',
     status:             'FT',
+    shiftSizes:         '',
     minHours:           40,
     maxHours:           40,
     notAvailDays:       '',
@@ -154,6 +156,7 @@ const ftEmployees = [
   {
     name:               'Avery Simmons',
     status:             'FT',
+    shiftSizes:         '',
     minHours:           40,
     maxHours:           40,
     notAvailDays:       '',
@@ -165,6 +168,7 @@ const ftEmployees = [
   {
     name:               'Casey Thornton',
     status:             'FT',
+    shiftSizes:         '',
     minHours:           40,
     maxHours:           40,
     notAvailDays:       '',
@@ -223,9 +227,16 @@ for (let i = 0; i < 21; i++) {
     rng.next();              // consume one next for am/pm choice
   }
 
+  // Add shiftSizes for a few PT employees as variation
+  let shiftSizes = '';
+  if (i === 0) shiftSizes = '4|6';
+  else if (i === 1) shiftSizes = '8';
+  else if (i === 2) shiftSizes = '6|8';
+
   ptEmployees.push({
     name,
     status:             'PT',
+    shiftSizes,
     minHours:           12,
     maxHours,
     notAvailDays:       notAvail.join('|'),
@@ -241,6 +252,7 @@ function csvRow(obj) {
   const fields = [
     obj.name,
     obj.status,
+    obj.shiftSizes,
     obj.minHours,
     obj.maxHours,
     obj.notAvailDays,
@@ -261,6 +273,7 @@ const empHeader = [
   '# Columns:',
   '#   name              — full name',
   '#   status            — FT | PT | Programming',
+  '#   shift_sizes       — pipe-separated numbers, e.g. 4|8 (PT only, valid: 4,6,8)',
   '#   min_hours         — minimum hours per week (ignored for FT, always 40)',
   '#   max_hours         — maximum hours per week (ignored for FT, always 40)',
   '#   not_available_days — pipe-separated DaySpec tokens (see formats below)',
@@ -275,7 +288,7 @@ const empHeader = [
   '#   "Monday3" → the 3rd Monday of the scheduled month (nth can be 1–5)',
   '# Examples: "Saturday", "15", "Monday3", "Saturday|15", "Monday3|Friday"',
   '#',
-  'name,status,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open',
+  'name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open',
 ];
 
 const empRows = [

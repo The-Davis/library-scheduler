@@ -44,17 +44,18 @@ Ready-to-upload CSV files are in the `sample-data/` folder:
 ### Employees CSV
 
 ```
-name,status,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
-Jordan Hayes,FT,40,40,,Monday|Tuesday|Wednesday|Thursday,,,avoid
-Alice Smith,PT,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
-Bob Jones,PT,16,32,,Wednesday|Friday,,Alice Smith,neutral
-Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
+name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
+Jordan Hayes,FT,,40,40,,Monday|Tuesday|Wednesday|Thursday,,,avoid
+Alice Smith,PT,4|6,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
+Bob Jones,PT,8,16,32,,Wednesday|Friday,,Alice Smith,neutral
+Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
 ```
 
 | Column | Values | Notes |
 |--------|--------|-------|
 | `name` | String | Must be unique |
 | `status` | `FT` \| `PT` \| `Programming` | FT always gets 40h/week |
+| `shift_sizes` | Pipe-separated integers | Optional. Limits PT shifts to these durations (valid: 4, 6, 8) |
 | `min_hours` | Integer | Ignored for FT |
 | `max_hours` | Integer | Ignored for FT |
 | `not_available_days` | Pipe-separated **DaySpec** tokens | Days the employee cannot work |

@@ -224,6 +224,9 @@
       } else {
         this.minHoursPerWeek = init.minHoursPerWeek ?? 12;
         this.maxHoursPerWeek = init.maxHoursPerWeek ?? 32;
+        if (init.shiftSizes && init.shiftSizes.length > 0) {
+          this.shiftSizes = init.shiftSizes;
+        }
       }
       this.notAvailableDays = init.notAvailableDays ?? [];
       this.preferredDays = init.preferredDays ?? [];
@@ -382,6 +385,9 @@
     if (!isAvailableForHours(emp, date, slot)) return HARD_BLOCK;
     if (hasConflictOnDay(emp, slot, dayAssignments)) return HARD_BLOCK;
     if (wouldExceedWeeklyMax(emp, slot, weekIndex, weeklyHours, totalWeeks)) return HARD_BLOCK;
+    if (emp.status === "PT" /* PartTime */ && emp.shiftSizes) {
+      if (!emp.shiftSizes.includes(slot.endHour - slot.startHour)) return HARD_BLOCK;
+    }
     let score = 0;
     if (emp.preferredDays.some((spec) => daySpecMatchesDate(spec, date))) {
       score += BONUS_PREFERRED_DAY;
@@ -1187,10 +1193,15 @@
       }
       const notAvailSpecs = notAvailable.map((d) => ds.weekday(d));
       const preferredSpecs = preferred.map((d) => ds.weekday(d));
+      let shiftSizes = [];
+      if (i === 0) shiftSizes = [4, 6];
+      else if (i === 1) shiftSizes = [8];
+      else if (i === 2) shiftSizes = [6, 8];
       employees.push({
         id,
         name,
         status: "PT" /* PartTime */,
+        shiftSizes,
         minHoursPerWeek: minHours,
         maxHoursPerWeek: maxHours,
         notAvailableDays: notAvailSpecs,
@@ -1317,11 +1328,11 @@
   }
 
   // src/parsers/csv-employees.ts
-  var EMPLOYEES_CSV_TEMPLATE = `name,status,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
-Jordan Hayes,FT,40,40,,,,,avoid
-Alice Smith,PT,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
-Bob Jones,PT,16,32,,Wednesday|Friday,,Alice Smith,neutral
-Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
+  var EMPLOYEES_CSV_TEMPLATE = `name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
+Jordan Hayes,FT,,40,40,,,,,avoid
+Alice Smith,PT,4|6,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
+Bob Jones,PT,8,16,32,,Wednesday|Friday,,Alice Smith,neutral
+Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
 `;
   function parseEmployeesCSV(raw) {
     const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -1336,16 +1347,18 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
       if (!name) continue;
       const statusRaw = (cols[1]?.trim() ?? "PT").toUpperCase();
       const status = statusRaw === "FT" ? "FT" /* FullTime */ : statusRaw === "PROG" || statusRaw === "PROGRAMMING" ? "Programming" /* Programming */ : "PT" /* PartTime */;
-      const minHours = parseInt(cols[2] ?? "", 10) || 12;
-      const maxHours = parseInt(cols[3] ?? "", 10) || 32;
-      const notAvail = parseDayList(cols[4] ?? "");
-      const preferred = parseDayList(cols[5] ?? "");
-      const prefCoNames = parseNameList(cols[6] ?? "");
-      const avoidCoNames = parseNameList(cols[7] ?? "");
-      const closePref = parseClosePref(cols[8] ?? "");
+      const shiftSizes = (cols[2] ?? "").split("|").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && (n === 4 || n === 6 || n === 8));
+      const minHours = parseInt(cols[3] ?? "", 10) || 12;
+      const maxHours = parseInt(cols[4] ?? "", 10) || 32;
+      const notAvail = parseDayList(cols[5] ?? "");
+      const preferred = parseDayList(cols[6] ?? "");
+      const prefCoNames = parseNameList(cols[7] ?? "");
+      const avoidCoNames = parseNameList(cols[8] ?? "");
+      const closePref = parseClosePref(cols[9] ?? "");
       rows.push({
         name,
         status,
+        ...shiftSizes.length > 0 ? { shiftSizes } : {},
         minHoursPerWeek: minHours,
         maxHoursPerWeek: maxHours,
         notAvailableDays: notAvail,
@@ -1367,6 +1380,7 @@ Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
         id,
         name: r.name,
         status: r.status,
+        ...r.shiftSizes ? { shiftSizes: r.shiftSizes } : {},
         minHoursPerWeek: r.minHoursPerWeek,
         maxHoursPerWeek: r.maxHoursPerWeek,
         notAvailableDays: r.notAvailableDays,

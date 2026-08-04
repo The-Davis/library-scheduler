@@ -109,6 +109,9 @@ export function scoreEmployee(ctx: ScoreContext): number {
   if (!isAvailableForHours(emp, date, slot))                             return HARD_BLOCK;
   if (hasConflictOnDay(emp, slot, dayAssignments))                       return HARD_BLOCK;
   if (wouldExceedWeeklyMax(emp, slot, weekIndex, weeklyHours, totalWeeks)) return HARD_BLOCK;
+  if (emp.status === EmployeeStatus.PartTime && emp.shiftSizes) {
+    if (!emp.shiftSizes.includes(slot.endHour - slot.startHour))         return HARD_BLOCK;
+  }
 
   // --- Soft preferences ---
   let score = 0;
