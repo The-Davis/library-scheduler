@@ -2448,26 +2448,196 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
     setTimeout(() => document.addEventListener("mousedown", closeMenu), 0);
   }
 
+  // src/storage.ts
+  var STORAGE_KEY = "library_scheduler_state";
+  function saveStateToStorage(year, month, seed, showCsvSection, employees, overrides) {
+    try {
+      const stateObj = {
+        year,
+        month,
+        seed,
+        showCsvSection,
+        // The Employee class properties are mostly primitive, we can serialize the instance directly,
+        // but to reconstruct it properly we can just pass the deserialized objects back into the Employee constructor.
+        // However, we should be careful to only save the init properties if possible, or just stringify the whole thing.
+        // JSON.stringify will serialize all public properties. 
+        employees: employees.map((e) => ({ ...e })),
+        overrides: Array.from(overrides.entries())
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateObj));
+      console.log("State saved to storage.");
+    } catch (err) {
+      console.error("Failed to save state to storage:", err);
+    }
+  }
+  function loadStateFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      const employees = (data.employees || []).map((empData) => new Employee(empData));
+      const overrides = new Map(data.overrides || []);
+      return {
+        year: data.year ?? 2026,
+        month: data.month ?? 8,
+        seed: data.seed ?? 12345,
+        showCsvSection: data.showCsvSection ?? false,
+        employees,
+        overrides
+      };
+    } catch (err) {
+      console.error("Failed to load state from storage:", err);
+      return null;
+    }
+  }
+  function clearStateStorage() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  // src/ui/settings-modal.ts
+  function showSettingsModal(currentState, onSave) {
+    const overlay = document.createElement("div");
+    overlay.className = "daily-modal-overlay";
+    overlay.id = "settings-modal-overlay";
+    const modal = document.createElement("div");
+    modal.className = "daily-modal";
+    modal.style.width = "400px";
+    modal.style.maxWidth = "90vw";
+    const header = document.createElement("div");
+    header.className = "daily-modal-header";
+    const titleBlock = document.createElement("div");
+    titleBlock.className = "daily-title-block";
+    const title = document.createElement("h2");
+    title.className = "daily-modal-title";
+    title.textContent = "Settings";
+    titleBlock.appendChild(title);
+    header.appendChild(titleBlock);
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "daily-modal-actions";
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "btn btn--ghost daily-close-btn";
+    closeBtn.innerHTML = "&times;";
+    closeBtn.addEventListener("click", () => overlay.remove());
+    actionsDiv.appendChild(closeBtn);
+    header.appendChild(actionsDiv);
+    modal.appendChild(header);
+    const content = document.createElement("div");
+    content.style.padding = "var(--sp-6)";
+    content.style.display = "flex";
+    content.style.flexDirection = "column";
+    content.style.gap = "var(--sp-4)";
+    const csvLabel = document.createElement("label");
+    csvLabel.style.display = "flex";
+    csvLabel.style.alignItems = "center";
+    csvLabel.style.gap = "var(--sp-2)";
+    csvLabel.style.cursor = "pointer";
+    const csvCheck = document.createElement("input");
+    csvCheck.type = "checkbox";
+    csvCheck.checked = currentState.showCsvSection;
+    csvCheck.addEventListener("change", () => {
+      currentState.showCsvSection = csvCheck.checked;
+      onSave(currentState);
+    });
+    csvLabel.appendChild(csvCheck);
+    csvLabel.appendChild(document.createTextNode("Show CSV Upload Section"));
+    content.appendChild(csvLabel);
+    const divider1 = document.createElement("hr");
+    divider1.style.border = "none";
+    divider1.style.borderTop = "1px solid var(--col-border)";
+    content.appendChild(divider1);
+    const dlBtn = document.createElement("button");
+    dlBtn.className = "btn btn--secondary";
+    dlBtn.textContent = "\u2193 Download Memory Backup";
+    dlBtn.addEventListener("click", () => {
+      const backupStr = localStorage.getItem("library_scheduler_state");
+      if (!backupStr) {
+        alert("No saved state found in memory.");
+        return;
+      }
+      const blob = new Blob([backupStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "library-scheduler-backup.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    content.appendChild(dlBtn);
+    const ulLabel = document.createElement("label");
+    ulLabel.className = "btn btn--secondary";
+    ulLabel.style.textAlign = "center";
+    ulLabel.textContent = "\u2191 Upload / Restore Backup";
+    const ulInput = document.createElement("input");
+    ulInput.type = "file";
+    ulInput.accept = ".json,application/json";
+    ulInput.style.display = "none";
+    ulInput.addEventListener("change", async () => {
+      const file = ulInput.files?.[0];
+      if (!file) return;
+      try {
+        const txt = await file.text();
+        const data = JSON.parse(txt);
+        if (typeof data === "object" && data !== null) {
+          localStorage.setItem("library_scheduler_state", txt);
+          alert("Backup restored! The page will now reload.");
+          location.reload();
+        } else {
+          alert("Invalid backup file format.");
+        }
+      } catch (e) {
+        alert("Failed to read or parse backup file.");
+      }
+    });
+    ulLabel.appendChild(ulInput);
+    content.appendChild(ulLabel);
+    const divider2 = document.createElement("hr");
+    divider2.style.border = "none";
+    divider2.style.borderTop = "1px solid var(--col-border)";
+    content.appendChild(divider2);
+    const resetBtn = document.createElement("button");
+    resetBtn.className = "btn btn--primary";
+    resetBtn.style.background = "var(--col-danger)";
+    resetBtn.style.borderColor = "var(--col-danger)";
+    resetBtn.textContent = "\u26A0 Reset Memory to Defaults";
+    resetBtn.addEventListener("click", () => {
+      if (confirm("Are you sure you want to completely wipe your browser storage? This will delete all rosters and shift edits, reverting to the default demo.")) {
+        clearStateStorage();
+        location.reload();
+      }
+    });
+    content.appendChild(resetBtn);
+    modal.appendChild(content);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  }
+
   // src/ui/app.ts
   function initApp() {
+    const saved = loadStateFromStorage();
     const state = {
-      year: 2026,
-      month: 8,
+      year: saved ? saved.year : 2026,
+      month: saved ? saved.month : 8,
       // September = index 8
-      seed: 12345,
-      employees: getDemoEmployees(),
-      overrides: buildDemoOverrides(),
+      seed: saved ? saved.seed : 12345,
+      showCsvSection: saved ? saved.showCsvSection : false,
+      employees: saved ? saved.employees : getDemoEmployees(),
+      overrides: saved ? saved.overrides : buildDemoOverrides(),
       schedule: null,
       weeklyHoursMap: /* @__PURE__ */ new Map(),
       dailySchedules: /* @__PURE__ */ new Map()
+    };
+    const save = () => {
+      saveStateToStorage(state.year, state.month, state.seed, state.showCsvSection, state.employees, state.overrides);
     };
     const yearInput = getEl("year-input");
     const monthSelect = getEl("month-select");
     const seedInput = getEl("seed-input");
     const generateBtn = getEl("generate-btn");
     const editShiftsBtn = getEl("edit-shifts-btn");
+    const settingsBtn = getEl("settings-btn");
     const shiftsFileInput = getEl("shifts-file");
     const empFileInput = getEl("employees-file");
+    const csvSection = getEl("csv-section");
     const calContainer = getEl("calendar-container");
     const summaryEl = getEl("summary-container");
     const legendEl = getEl("legend-container");
@@ -2480,22 +2650,26 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
       const opt = document.createElement("option");
       opt.value = String(m);
       opt.textContent = new Date(2e3, m, 1).toLocaleString("default", { month: "long" });
-      if (m === 8) opt.selected = true;
+      if (m === state.month) opt.selected = true;
       monthSelect.appendChild(opt);
     }
     yearInput.value = String(state.year);
     seedInput.value = String(state.seed);
+    csvSection.style.display = state.showCsvSection ? "block" : "none";
     yearInput.addEventListener("change", () => {
       state.year = parseInt(yearInput.value, 10) || 2026;
       state.dailySchedules.clear();
+      save();
     });
     monthSelect.addEventListener("change", () => {
       state.month = parseInt(monthSelect.value, 10);
       state.dailySchedules.clear();
+      save();
     });
     seedInput.addEventListener("change", () => {
       state.seed = parseInt(seedInput.value, 10) || 12345;
       state.dailySchedules.clear();
+      save();
     });
     shiftsFileInput.addEventListener("change", async () => {
       const file = shiftsFileInput.files?.[0];
@@ -2504,7 +2678,8 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
       try {
         const raw = await file.text();
         const parsed = parseShiftsCSV(raw);
-        state.overrides = new Map([...buildDemoOverrides(), ...parsed]);
+        state.overrides = parsed;
+        save();
         setStatus(`\u2713 Shifts file loaded: ${file.name}`, "success");
       } catch (e) {
         setStatus(`\u26A0 Could not parse shifts file: ${e.message}`, "error");
@@ -2520,6 +2695,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
         if (parsed.length > 0) {
           state.employees = parsed;
           state.dailySchedules.clear();
+          save();
           setStatus(`\u2713 Employees file loaded: ${file.name} (${parsed.length} employees)`, "success");
         } else {
           setStatus("\u26A0 No employees found in CSV.", "error");
@@ -2542,7 +2718,15 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
       showShiftEditor(state, (newOverrides) => {
         state.overrides = newOverrides;
         state.dailySchedules.clear();
+        save();
         runAndRender(state, calContainer, summaryEl, statusEl);
+      });
+    });
+    settingsBtn.addEventListener("click", () => {
+      showSettingsModal(state, (newState) => {
+        state.showCsvSection = newState.showCsvSection;
+        csvSection.style.display = state.showCsvSection ? "block" : "none";
+        save();
       });
     });
     renderLegend(legendEl);
@@ -2604,18 +2788,19 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
         const wh = state.weeklyHoursMap.get(emp.id) ?? new Array(totalWeeks).fill(0);
         return { employee: emp, weeklyHours: [...wh], totalHours: wh.reduce((a, b) => a + b, 0) };
       });
-      const summaryCtx = {
+      const ctx = {
         year: state.year,
         month: state.month,
         onEditRoster: () => {
-          showRosterEditor(state.employees, (updatedEmployees) => {
-            state.employees = updatedEmployees;
+          showRosterEditor(state.employees, (emps) => {
+            state.employees = emps;
             state.dailySchedules.clear();
+            saveStateToStorage(state.year, state.month, state.seed, state.showCsvSection, state.employees, state.overrides);
             runAndRender(state, calEl, summaryEl, statusEl);
           });
         }
       };
-      renderSummary(summaryRows, summaryEl, totalWeeks, summaryCtx);
+      renderSummary(summaryRows, summaryEl, totalWeeks, ctx);
       const elapsed = (performance.now() - t0).toFixed(0);
       const unassigned = schedule.allDays.flatMap((d) => d.assignments).filter((s) => !s.assignedEmployeeId).length;
       const msg = unassigned > 0 ? `\u26A0 Schedule generated in ${elapsed}ms \u2014 ${unassigned} slot(s) unassigned` : `\u2713 Schedule generated in ${elapsed}ms \u2014 all slots filled`;
