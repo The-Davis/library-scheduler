@@ -1590,6 +1590,13 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
     dlBtn.className = "btn btn--ghost btn--sm";
     dlBtn.innerHTML = "\u2B07&thinsp;CSV";
     dlBtn.setAttribute("aria-label", "Download employee hour summary as CSV");
+    const editBtn = document.createElement("button");
+    editBtn.id = "summary-edit-roster-btn";
+    editBtn.className = "btn btn--ghost btn--sm";
+    editBtn.innerHTML = "\u270F\uFE0F&thinsp;Edit Roster";
+    editBtn.setAttribute("aria-label", "Edit the employee roster");
+    editBtn.addEventListener("click", () => ctx.onEditRoster());
+    actions.appendChild(editBtn);
     actions.appendChild(printBtn);
     actions.appendChild(dlBtn);
     headingRow.appendChild(heading);
@@ -1868,6 +1875,260 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
     return map;
   }
 
+  // src/ui/roster-editor.ts
+  function validateDaySpecs(raw) {
+    if (!raw.trim()) return true;
+    const tokens = raw.split("|");
+    for (const t of tokens) {
+      if (parseDaySpec(t.trim()) === null) return false;
+    }
+    return true;
+  }
+  function validateCoworkers(raw, allNames) {
+    if (!raw.trim()) return true;
+    const tokens = raw.split("|").map((n) => n.trim().toLowerCase()).filter(Boolean);
+    for (const t of tokens) {
+      if (!allNames.has(t)) return false;
+    }
+    return true;
+  }
+  function validateShiftSizes(raw) {
+    if (!raw.trim()) return true;
+    const tokens = raw.split("|").map((s) => parseInt(s.trim(), 10));
+    for (const n of tokens) {
+      if (isNaN(n) || n !== 4 && n !== 6 && n !== 8) return false;
+    }
+    return true;
+  }
+  function showRosterEditor(currentEmployees, onSave) {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    overlay.id = "roster-modal-overlay";
+    const modal = document.createElement("div");
+    modal.className = "modal-content roster-modal-content";
+    const header = document.createElement("div");
+    header.className = "modal-header";
+    const title = document.createElement("h2");
+    title.textContent = "Edit Roster";
+    header.appendChild(title);
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "modal-close-btn";
+    closeBtn.innerHTML = "&times;";
+    closeBtn.addEventListener("click", () => overlay.remove());
+    header.appendChild(closeBtn);
+    modal.appendChild(header);
+    const table = document.createElement("table");
+    table.className = "roster-table";
+    const thead = document.createElement("thead");
+    const headTr = document.createElement("tr");
+    const headers = [
+      "Name",
+      "Status",
+      "Shift Sizes (4|6|8)",
+      "Min Hrs",
+      "Max Hrs",
+      "Not Available",
+      "Preferred Days",
+      "Preferred Coworkers",
+      "Avoid Coworkers",
+      "Close\u2192Open",
+      ""
+      // Action column
+    ];
+    headers.forEach((h) => {
+      const th = document.createElement("th");
+      th.textContent = h;
+      headTr.appendChild(th);
+    });
+    thead.appendChild(headTr);
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    table.appendChild(tbody);
+    const rowControllers = [];
+    const getKnownNames = () => {
+      const names = /* @__PURE__ */ new Set();
+      for (const ctrl of rowControllers) {
+        const init = ctrl();
+        if (init && init.name.trim()) names.add(init.name.trim().toLowerCase());
+      }
+      return names;
+    };
+    const validateAllRows = () => {
+      const inputs = tbody.querySelectorAll('input[type="text"]');
+      inputs.forEach((el) => el.dispatchEvent(new Event("input")));
+    };
+    function addRow(init) {
+      const tr = document.createElement("tr");
+      const createInput = (val, placeholder, validator) => {
+        const td = document.createElement("td");
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = val;
+        input.placeholder = placeholder;
+        input.className = "roster-input";
+        if (validator) {
+          input.addEventListener("input", () => {
+            if (!validator(input.value)) {
+              input.classList.add("roster-input--invalid");
+            } else {
+              input.classList.remove("roster-input--invalid");
+            }
+          });
+        }
+        td.appendChild(input);
+        tr.appendChild(td);
+        return input;
+      };
+      const createNum = (val, placeholder) => {
+        const td = document.createElement("td");
+        const input = document.createElement("input");
+        input.type = "number";
+        input.value = String(val);
+        input.placeholder = placeholder;
+        input.className = "roster-input roster-input--num";
+        td.appendChild(input);
+        tr.appendChild(td);
+        return input;
+      };
+      const createSelect = (opts, val) => {
+        const td = document.createElement("td");
+        const select = document.createElement("select");
+        select.className = "roster-select";
+        for (const o of opts) {
+          const opt = document.createElement("option");
+          opt.value = o;
+          opt.textContent = o;
+          if (o === val) opt.selected = true;
+          select.appendChild(opt);
+        }
+        td.appendChild(select);
+        tr.appendChild(td);
+        return select;
+      };
+      const inpName = createInput(init?.name ?? "", "Name");
+      inpName.addEventListener("input", validateAllRows);
+      const selStatus = createSelect(["FT", "PT", "Programming"], init?.status ?? "PT");
+      const inpShiftSizes = createInput(init?.shiftSizes?.join("|") ?? "", "e.g. 4|8", validateShiftSizes);
+      const inpMinHours = createNum(init?.minHoursPerWeek ?? 12, "Min");
+      const inpMaxHours = createNum(init?.maxHoursPerWeek ?? 32, "Max");
+      const toDS = (specs) => {
+        if (!specs) return "";
+        return specs.map((s) => {
+          if (s.type === "date") return String(s.date);
+          if (s.type === "weekday") return s.name;
+          if (s.type === "nth-weekday") return `${s.name}${s.nth}`;
+          return "";
+        }).join("|");
+      };
+      const inpNotAvail = createInput(toDS(init?.notAvailableDays), "e.g. 15|Monday", validateDaySpecs);
+      const inpPrefDays = createInput(toDS(init?.preferredDays), "e.g. Friday", validateDaySpecs);
+      const coValidator = (val) => validateCoworkers(val, getKnownNames());
+      const idToName = new Map(currentEmployees.map((e) => [e.id, e.name]));
+      const toNames = (ids) => ids ? ids.map((id) => idToName.get(id) || id).join("|") : "";
+      const inpPrefCo = createInput(toNames(init?.preferredCoworkers), "e.g. Alice", coValidator);
+      const inpAvoidCo = createInput(toNames(init?.avoidCoworkers), "e.g. Bob", coValidator);
+      const selCloseOpen = createSelect(["prefer", "avoid", "neutral"], init?.closeThenOpenPref ?? "neutral");
+      const tdAction = document.createElement("td");
+      const btnRemove = document.createElement("button");
+      btnRemove.className = "roster-remove-btn";
+      btnRemove.innerHTML = "&minus;";
+      btnRemove.title = "Remove employee";
+      btnRemove.addEventListener("click", () => {
+        tr.remove();
+        const idx = rowControllers.indexOf(serialize);
+        if (idx !== -1) rowControllers.splice(idx, 1);
+        validateAllRows();
+      });
+      tdAction.appendChild(btnRemove);
+      tr.appendChild(tdAction);
+      tbody.appendChild(tr);
+      setTimeout(() => {
+        inpShiftSizes.dispatchEvent(new Event("input"));
+        inpNotAvail.dispatchEvent(new Event("input"));
+        inpPrefDays.dispatchEvent(new Event("input"));
+        inpPrefCo.dispatchEvent(new Event("input"));
+        inpAvoidCo.dispatchEvent(new Event("input"));
+      }, 0);
+      const serialize = () => {
+        const name = inpName.value.trim();
+        if (!name) return null;
+        const status = selStatus.value;
+        const shiftSizes = inpShiftSizes.value.split("|").map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n));
+        const minHours = parseInt(inpMinHours.value, 10) || 12;
+        const maxHours = parseInt(inpMaxHours.value, 10) || 32;
+        const parseDayList2 = (raw) => raw.split("|").map((t) => parseDaySpec(t.trim())).filter((s) => s !== null);
+        const notAvail = parseDayList2(inpNotAvail.value);
+        const prefDays = parseDayList2(inpPrefDays.value);
+        const prefCo = inpPrefCo.value.split("|").map((s) => s.trim()).filter(Boolean);
+        const avoidCo = inpAvoidCo.value.split("|").map((s) => s.trim()).filter(Boolean);
+        return {
+          id: init?.id || `new-${Math.random().toString(36).substr(2, 9)}`,
+          // Temp ID
+          name,
+          status,
+          ...shiftSizes.length > 0 ? { shiftSizes } : {},
+          minHoursPerWeek: minHours,
+          maxHoursPerWeek: maxHours,
+          notAvailableDays: notAvail,
+          preferredDays: prefDays,
+          preferredCoworkers: prefCo,
+          avoidCoworkers: avoidCo,
+          closeThenOpenPref: selCloseOpen.value
+        };
+      };
+      rowControllers.push(serialize);
+    }
+    currentEmployees.forEach((e) => addRow(e));
+    const tableContainer = document.createElement("div");
+    tableContainer.className = "roster-table-container";
+    tableContainer.appendChild(table);
+    modal.appendChild(tableContainer);
+    const footer = document.createElement("div");
+    footer.className = "modal-footer roster-footer";
+    const addBtn = document.createElement("button");
+    addBtn.className = "btn btn--secondary";
+    addBtn.innerHTML = "+ Add Employee";
+    addBtn.addEventListener("click", () => {
+      addRow();
+      setTimeout(() => tableContainer.scrollTop = tableContainer.scrollHeight, 0);
+    });
+    footer.appendChild(addBtn);
+    const rightActions = document.createElement("div");
+    rightActions.className = "roster-footer-right";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "btn btn--ghost";
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.addEventListener("click", () => overlay.remove());
+    const saveBtn = document.createElement("button");
+    saveBtn.className = "btn btn--primary";
+    saveBtn.textContent = "Save & Apply";
+    saveBtn.addEventListener("click", () => {
+      const inits = [];
+      for (const ctrl of rowControllers) {
+        const init = ctrl();
+        if (init) inits.push(init);
+      }
+      const nameToId = /* @__PURE__ */ new Map();
+      inits.forEach((init, i) => {
+        init.id = `emp-${String(i + 1).padStart(3, "0")}`;
+        nameToId.set(init.name.toLowerCase(), init.id);
+      });
+      for (const init of inits) {
+        init.preferredCoworkers = init.preferredCoworkers.map((n) => nameToId.get(n.toLowerCase())).filter(Boolean);
+        init.avoidCoworkers = init.avoidCoworkers.map((n) => nameToId.get(n.toLowerCase())).filter(Boolean);
+      }
+      const newEmployees = inits.map((init) => new Employee(init));
+      onSave(newEmployees);
+      overlay.remove();
+    });
+    rightActions.appendChild(cancelBtn);
+    rightActions.appendChild(saveBtn);
+    footer.appendChild(rightActions);
+    modal.appendChild(footer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  }
+
   // src/ui/app.ts
   function initApp() {
     const state = {
@@ -2016,7 +2277,17 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
         const wh = state.weeklyHoursMap.get(emp.id) ?? new Array(totalWeeks).fill(0);
         return { employee: emp, weeklyHours: [...wh], totalHours: wh.reduce((a, b) => a + b, 0) };
       });
-      const summaryCtx = { year: state.year, month: state.month };
+      const summaryCtx = {
+        year: state.year,
+        month: state.month,
+        onEditRoster: () => {
+          showRosterEditor(state.employees, (updatedEmployees) => {
+            state.employees = updatedEmployees;
+            state.dailySchedules.clear();
+            runAndRender(state, calEl, summaryEl, statusEl);
+          });
+        }
+      };
       renderSummary(summaryRows, summaryEl, totalWeeks, summaryCtx);
       const elapsed = (performance.now() - t0).toFixed(0);
       const unassigned = schedule.allDays.flatMap((d) => d.assignments).filter((s) => !s.assignedEmployeeId).length;

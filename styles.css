@@ -556,14 +556,12 @@ body {
 
 .cal-holiday-badge {
   display:       inline-block;
-  margin-top:    var(--sp-2);
-  font-size:     var(--text-xs);
-  color:         var(--col-amber);
-  background:    var(--col-warn-bg);
-  border:        1px solid hsla(38,90%,45%,0.3);
-  border-radius: var(--r-sm);
-  padding:       2px var(--sp-2);
+  margin-top: 2px;
+  color: #666;
+  font-size: 11px;
 }
+
+
 
 /* --- Role Sections within a day --- */
 .cal-role-section {
@@ -1132,3 +1130,105 @@ body {
   /* Hide everything except the print window (which is its own page) */
 }
 
+/* ==========================================================================
+   Roster Editor Modal
+   ========================================================================== */
+
+.roster-modal-content {
+  width: 95vw;
+  max-width: 1400px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.roster-table-container {
+  overflow-y: auto;
+  overflow-x: auto;
+  flex: 1;
+  padding: 0 var(--sp-6) var(--sp-6);
+}
+
+.roster-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.roster-table th {
+  position: sticky;
+  top: 0;
+  background: var(--col-bg-surface);
+  z-index: 2;
+  font-size: var(--text-xs);
+  color: var(--col-text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--sp-3) var(--sp-2);
+  border-bottom: 2px solid var(--col-border);
+}
+
+.roster-table td {
+  padding: var(--sp-2) var(--sp-2);
+  border-bottom: 1px solid var(--col-border);
+  vertical-align: middle;
+}
+
+.roster-input, .roster-select {
+  width: 100%;
+  padding: var(--sp-2);
+  border: 1px solid var(--col-border);
+  border-radius: var(--radius-sm);
+  background: var(--col-bg-app);
+  color: var(--col-text-1);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  transition: all var(--transition-fast);
+}
+
+.roster-input:focus, .roster-select:focus {
+  outline: none;
+  border-color: var(--col-primary);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.roster-input--num {
+  width: 60px;
+  text-align: center;
+}
+
+.roster-input--invalid {
+  border-color: var(--col-danger) !important;
+  color: var(--col-danger) !important;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.roster-remove-btn {
+  background: none;
+  border: none;
+  color: var(--col-danger);
+  font-size: var(--text-xl);
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0 var(--sp-2);
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
+}
+.roster-remove-btn:hover {
+  opacity: 1;
+}
+
+.roster-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-4) var(--sp-6);
+  border-top: 1px solid var(--col-border);
+  background: var(--col-bg-surface);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
+.roster-footer-right {
+  display: flex;
+  gap: var(--sp-3);
+}
