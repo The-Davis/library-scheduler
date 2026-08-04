@@ -109,7 +109,7 @@ export function showRosterEditor(currentEmployees: Employee[], onSave: OnRosterS
   };
 
   const validateAllRows = () => {
-    const inputs = tbody.querySelectorAll('input[type="text"]');
+    const inputs = tbody.querySelectorAll('input[data-coworker="true"]');
     inputs.forEach(el => el.dispatchEvent(new Event('input')));
   };
 
@@ -198,7 +198,9 @@ export function showRosterEditor(currentEmployees: Employee[], onSave: OnRosterS
     const toNames = (ids?: string[]) => ids ? ids.map(id => idToName.get(id) || id).join('|') : '';
 
     const inpPrefCo = createInput(toNames(init?.preferredCoworkers), 'e.g. Alice', coValidator);
+    inpPrefCo.dataset.coworker = 'true';
     const inpAvoidCo = createInput(toNames(init?.avoidCoworkers), 'e.g. Bob', coValidator);
+    inpAvoidCo.dataset.coworker = 'true';
     
     const selCloseOpen = createSelect(['prefer', 'avoid', 'neutral'], init?.closeThenOpenPref ?? 'neutral');
 
