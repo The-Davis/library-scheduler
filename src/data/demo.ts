@@ -124,10 +124,17 @@ function generatePTEmployees(rng: SeededRandom, count: number): EmployeeInit[] {
     const notAvailSpecs: DaySpec[] = notAvailable.map(d => ds.weekday(d));
     const preferredSpecs: DaySpec[] = preferred.map(d => ds.weekday(d));
 
+    // Add shiftSizes for a few PT employees as variation
+    let shiftSizes: number[] = [];
+    if (i === 0) shiftSizes = [4, 6];
+    else if (i === 1) shiftSizes = [8];
+    else if (i === 2) shiftSizes = [6, 8];
+
     employees.push({
       id,
       name,
       status:             EmployeeStatus.PartTime,
+      shiftSizes,
       minHoursPerWeek:    minHours,
       maxHoursPerWeek:    maxHours,
       notAvailableDays:   notAvailSpecs,

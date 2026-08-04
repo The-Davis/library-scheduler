@@ -6,12 +6,13 @@ import { EmployeeStatus } from '../types/shift';
 // ---------------------------------------------------------------------------
 // Expected CSV format (header row required):
 //
-//   name,status,min_hours,max_hours,not_available_days,preferred_days,
+//   name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,
 //   preferred_coworkers,avoid_coworkers,close_then_open
 //
 // Columns:
 //   name              — full name (string)
 //   status            — FT | PT | Programming
+//   shift_sizes       — pipe-separated numbers, e.g. 4|8 (PT only, valid: 4,6,8)
 //   min_hours         — minimum hours per week (ignored for FT)
 //   max_hours         — maximum hours per week (ignored for FT)
 //   not_available_days — pipe-separated DaySpec tokens (see below)
@@ -26,17 +27,18 @@ import { EmployeeStatus } from '../types/shift';
 //   "Monday3"  → the third Monday of the scheduled month
 // ---------------------------------------------------------------------------
 
-export const EMPLOYEES_CSV_TEMPLATE = `name,status,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
-Jordan Hayes,FT,40,40,,,,,avoid
-Alice Smith,PT,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
-Bob Jones,PT,16,32,,Wednesday|Friday,,Alice Smith,neutral
-Dana Lee,PT,12,20,15|Monday3,Tuesday|Friday,,,neutral
+export const EMPLOYEES_CSV_TEMPLATE = `name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
+Jordan Hayes,FT,,40,40,,,,,avoid
+Alice Smith,PT,4|6,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
+Bob Jones,PT,8,16,32,,Wednesday|Friday,,Alice Smith,neutral
+Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
 `;
 
 
 export interface EmployeeCSVRow {
   name:               string;
   status:             EmployeeStatus;
+  shiftSizes?:        number[];
   minHoursPerWeek:    number;
   maxHoursPerWeek:    number;
   notAvailableDays:   DaySpec[];
@@ -74,17 +76,23 @@ export function parseEmployeesCSV(raw: string): Employee[] {
                                   ? EmployeeStatus.Programming
                                   : EmployeeStatus.PartTime;
 
-    const minHours = parseInt(cols[2] ?? '', 10) || 12;
-    const maxHours = parseInt(cols[3] ?? '', 10) || 32;
+    const shiftSizes = (cols[2] ?? '').split('|')
+      .map(s => parseInt(s.trim(), 10))
+      .filter(n => !isNaN(n) && (n === 4 || n === 6 || n === 8));
 
-    const notAvail   = parseDayList(cols[4] ?? '');
-    const preferred  = parseDayList(cols[5] ?? '');
-    const prefCoNames = parseNameList(cols[6] ?? '');
-    const avoidCoNames = parseNameList(cols[7] ?? '');
-    const closePref  = parseClosePref(cols[8] ?? '');
+    const minHours = parseInt(cols[3] ?? '', 10) || 12;
+    const maxHours = parseInt(cols[4] ?? '', 10) || 32;
+
+    const notAvail   = parseDayList(cols[5] ?? '');
+    const preferred  = parseDayList(cols[6] ?? '');
+    const prefCoNames = parseNameList(cols[7] ?? '');
+    const avoidCoNames = parseNameList(cols[8] ?? '');
+    const closePref  = parseClosePref(cols[9] ?? '');
 
     rows.push({
-      name, status, minHoursPerWeek: minHours, maxHoursPerWeek: maxHours,
+      name, status,
+      ...(shiftSizes.length > 0 ? { shiftSizes } : {}),
+      minHoursPerWeek: minHours, maxHoursPerWeek: maxHours,
       notAvailableDays: notAvail, preferredDays: preferred,
       preferredCoworkers: prefCoNames, avoidCoworkers: avoidCoNames,
       closeThenOpenPref: closePref,
@@ -110,6 +118,7 @@ export function parseEmployeesCSV(raw: string): Employee[] {
       id,
       name:               r.name,
       status:             r.status,
+      ...(r.shiftSizes ? { shiftSizes: r.shiftSizes } : {}),
       minHoursPerWeek:    r.minHoursPerWeek,
       maxHoursPerWeek:    r.maxHoursPerWeek,
       notAvailableDays:   r.notAvailableDays,

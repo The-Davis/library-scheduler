@@ -142,6 +142,7 @@ export interface EmployeeInit {
   minHoursPerWeek?:    number;
   /** Ignored for FT (always 40) */
   maxHoursPerWeek?:    number;
+  shiftSizes?:         number[];
   /** Days on which this employee cannot work. Supports all DaySpec forms. */
   notAvailableDays?:   DaySpec[];
   /** Days this employee prefers to work. Supports all DaySpec forms. */
@@ -164,6 +165,7 @@ export class Employee {
   readonly status:              EmployeeStatus;
   readonly minHoursPerWeek:     number;
   readonly maxHoursPerWeek:     number;
+  readonly shiftSizes?:         number[];
   readonly notAvailableDays:    DaySpec[];
   readonly preferredDays:       DaySpec[];
   readonly unavailableHours:    DayHourRange[];
@@ -184,6 +186,9 @@ export class Employee {
     } else {
       this.minHoursPerWeek = init.minHoursPerWeek ?? 12;
       this.maxHoursPerWeek = init.maxHoursPerWeek ?? 32;
+      if (init.shiftSizes && init.shiftSizes.length > 0) {
+        this.shiftSizes = init.shiftSizes;
+      }
     }
 
     this.notAvailableDays   = init.notAvailableDays   ?? [];
