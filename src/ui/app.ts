@@ -12,6 +12,8 @@ import { renderCalendar, renderSummary, renderLegend, WeeklySummaryRow, SummaryC
 import { getCalendarWeekIndex } from '../types/day';
 import { showRosterEditor } from './roster-editor';
 import { showShiftEditor } from './shift-editor';
+import { showSettingsModal } from './settings-modal';
+import { loadStateFromStorage, saveStateToStorage } from '../storage';
 
 // ---------------------------------------------------------------------------
 // App state
@@ -21,6 +23,7 @@ interface AppState {
   year:              number;
   month:             number;
   seed:              number;
+  showCsvSection:    boolean;
   employees:         Employee[];
   overrides:         Map<string, DayOverride>;
   schedule:          MonthSchedule | null;
@@ -34,15 +37,22 @@ interface AppState {
 // ---------------------------------------------------------------------------
 
 export function initApp(): void {
+  const saved = loadStateFromStorage();
+  
   const state: AppState = {
-    year:           2026,
-    month:          8, // September = index 8
-    seed:           12345,
-    employees:      getDemoEmployees(),
-    overrides:      buildDemoOverrides(),
+    year:           saved ? saved.year : 2026,
+    month:          saved ? saved.month : 8, // September = index 8
+    seed:           saved ? saved.seed : 12345,
+    showCsvSection: saved ? saved.showCsvSection : false,
+    employees:      saved ? saved.employees : getDemoEmployees(),
+    overrides:      saved ? saved.overrides : buildDemoOverrides(),
     schedule:       null,
     weeklyHoursMap: new Map(),
     dailySchedules: new Map(),
+  };
+  
+  const save = () => {
+    saveStateToStorage(state.year, state.month, state.seed, state.showCsvSection, state.employees, state.overrides);
   };
 
   // --- DOM refs ---
@@ -51,8 +61,10 @@ export function initApp(): void {
   const seedInput       = getEl<HTMLInputElement>('seed-input');
   const generateBtn     = getEl<HTMLButtonElement>('generate-btn');
   const editShiftsBtn   = getEl<HTMLButtonElement>('edit-shifts-btn');
+  const settingsBtn     = getEl<HTMLButtonElement>('settings-btn');
   const shiftsFileInput = getEl<HTMLInputElement>('shifts-file');
   const empFileInput    = getEl<HTMLInputElement>('employees-file');
+  const csvSection      = getEl<HTMLElement>('csv-section');
   const calContainer    = getEl<HTMLElement>('calendar-container');
   const summaryEl       = getEl<HTMLElement>('summary-container');
   const legendEl        = getEl<HTMLElement>('legend-container');
@@ -67,30 +79,35 @@ export function initApp(): void {
     const opt = document.createElement('option');
     opt.value = String(m);
     opt.textContent = new Date(2000, m, 1).toLocaleString('default', { month: 'long' });
-    if (m === 8) opt.selected = true;
+    if (m === state.month) opt.selected = true;
     monthSelect.appendChild(opt);
   }
 
   // Set initial input values
   yearInput.value = String(state.year);
   seedInput.value = String(state.seed);
+  
+  // Set initial CSV section visibility
+  csvSection.style.display = state.showCsvSection ? 'block' : 'none';
 
   // --- Event listeners ---
 
   yearInput.addEventListener('change', () => {
     state.year = parseInt(yearInput.value, 10) || 2026;
-    // Clear cached daily schedules when month changes
     state.dailySchedules.clear();
+    save();
   });
 
   monthSelect.addEventListener('change', () => {
     state.month = parseInt(monthSelect.value, 10);
     state.dailySchedules.clear();
+    save();
   });
 
   seedInput.addEventListener('change', () => {
     state.seed = parseInt(seedInput.value, 10) || 12345;
     state.dailySchedules.clear();
+    save();
   });
 
   shiftsFileInput.addEventListener('change', async () => {
@@ -100,8 +117,8 @@ export function initApp(): void {
     try {
       const raw = await file.text();
       const parsed = parseShiftsCSV(raw);
-      // Merge with demo overrides (file overrides demo)
-      state.overrides = new Map([...buildDemoOverrides(), ...parsed]);
+      state.overrides = parsed; // No longer merging with demo if they upload real
+      save();
       setStatus(`✓ Shifts file loaded: ${file.name}`, 'success');
     } catch (e) {
       setStatus(`⚠ Could not parse shifts file: ${(e as Error).message}`, 'error');
@@ -118,6 +135,7 @@ export function initApp(): void {
       if (parsed.length > 0) {
         state.employees = parsed;
         state.dailySchedules.clear();
+        save();
         setStatus(`✓ Employees file loaded: ${file.name} (${parsed.length} employees)`, 'success');
       } else {
         setStatus('⚠ No employees found in CSV.', 'error');
@@ -136,7 +154,6 @@ export function initApp(): void {
   });
 
   generateBtn.addEventListener('click', () => {
-    // Clear daily schedules when re-generating (monthly assignments may have changed)
     state.dailySchedules.clear();
     runAndRender(state, calContainer, summaryEl, statusEl);
   });
@@ -145,7 +162,17 @@ export function initApp(): void {
     showShiftEditor(state, (newOverrides) => {
       state.overrides = newOverrides;
       state.dailySchedules.clear();
+      save();
       runAndRender(state, calContainer, summaryEl, statusEl);
+    });
+  });
+
+  settingsBtn.addEventListener('click', () => {
+    showSettingsModal(state, (newState) => {
+      // Re-apply state changes
+      state.showCsvSection = newState.showCsvSection;
+      csvSection.style.display = state.showCsvSection ? 'block' : 'none';
+      save();
     });
   });
 
@@ -242,19 +269,19 @@ function runAndRender(
       const wh = state.weeklyHoursMap.get(emp.id) ?? new Array(totalWeeks).fill(0);
       return { employee: emp, weeklyHours: [...wh], totalHours: wh.reduce((a, b) => a + b, 0) };
     });
-    const summaryCtx: SummaryContext = { 
-      year: state.year, 
+    const ctx: SummaryContext = {
+      year: state.year,
       month: state.month,
       onEditRoster: () => {
-        showRosterEditor(state.employees, (updatedEmployees) => {
-          state.employees = updatedEmployees;
-          // Re-generate schedule and re-render
+        showRosterEditor(state.employees, (emps) => {
+          state.employees = emps;
           state.dailySchedules.clear();
+          saveStateToStorage(state.year, state.month, state.seed, state.showCsvSection, state.employees, state.overrides);
           runAndRender(state, calEl, summaryEl, statusEl);
         });
-      }
+      },
     };
-    renderSummary(summaryRows, summaryEl, totalWeeks, summaryCtx);
+    renderSummary(summaryRows, summaryEl, totalWeeks, ctx);
 
     const elapsed    = (performance.now() - t0).toFixed(0);
     const unassigned = schedule.allDays
