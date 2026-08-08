@@ -44,11 +44,11 @@ Ready-to-upload CSV files are in the `sample-data/` folder:
 ### Employees CSV
 
 ```
-name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
-Jordan Hayes,FT,,40,40,,Monday|Tuesday|Wednesday|Thursday,,,avoid
-Alice Smith,PT,4|6,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
-Bob Jones,PT,8,16,32,,Wednesday|Friday,,Alice Smith,neutral
-Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
+name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open,must_work_days
+Jordan Hayes,FT,,40,40,,Monday|Tuesday|Wednesday|Thursday,,,avoid,
+Alice Smith,PT,4|6,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid,
+Bob Jones,PT,8,16,32,,Wednesday|Friday,,Alice Smith,neutral,
+Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral,Saturday
 ```
 
 | Column | Values | Notes |
@@ -58,15 +58,16 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
 | `shift_sizes` | Pipe-separated integers | Optional. Limits PT shifts to these durations (valid: 4, 6, 8) |
 | `min_hours` | Integer | Ignored for FT |
 | `max_hours` | Integer | Ignored for FT |
-| `not_available_days` | Pipe-separated **DaySpec** tokens | Days the employee cannot work |
+| `not_available_days` | Pipe-separated **DaySpec** tokens | Days the employee cannot work (hard block) |
 | `preferred_days` | Pipe-separated **DaySpec** tokens | Days the employee prefers (scores +20) |
 | `preferred_coworkers` | Pipe-separated names | Scores +10 when paired |
 | `avoid_coworkers` | Pipe-separated names | Scores −15 when paired |
 | `close_then_open` | `prefer` \| `avoid` \| `neutral` | Back-to-back shift preference |
+| `must_work_days` | Pipe-separated **DaySpec** tokens | Days the employee must work (scores +1000, mandatory unless they would exceed their weekly hour limit) |
 
 #### DaySpec token formats
 
-Both `not_available_days` and `preferred_days` accept pipe-separated **DaySpec** tokens. Three formats are supported and can be freely mixed:
+Both `not_available_days`, `preferred_days`, and `must_work_days` accept pipe-separated **DaySpec** tokens. Three formats are supported and can be freely mixed:
 
 | Token | Example | Meaning |
 |-------|---------|--------|
@@ -82,6 +83,9 @@ not_available_days = 15|Saturday
 
 # Prefers Fridays AND the third Monday of the month:
 preferred_days = Friday|Monday3
+
+# Must work every Saturday (will be skipped only if they'd exceed their weekly max):
+must_work_days = Saturday
 
 # Not available on the first and last Saturday (assume 4 Saturdays):
 not_available_days = Saturday1|Saturday4

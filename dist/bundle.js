@@ -240,6 +240,7 @@
       }
       this.notAvailableDays = init.notAvailableDays ?? [];
       this.preferredDays = init.preferredDays ?? [];
+      this.mustWorkDays = init.mustWorkDays ?? [];
       this.unavailableHours = init.unavailableHours ?? [];
       this.preferredHours = init.preferredHours ?? [];
       this.preferredCoworkers = init.preferredCoworkers ?? [];
@@ -339,6 +340,7 @@
 
   // src/algorithm/scorer.ts
   var HARD_BLOCK = -Infinity;
+  var BONUS_MUST_WORK_DAY = 1e3;
   var BONUS_PREFERRED_DAY = 20;
   var BONUS_PREFERRED_HOURS = 15;
   var BONUS_PREFERRED_COWORKER = 10;
@@ -399,6 +401,9 @@
       if (!emp.shiftSizes.includes(slot.endHour - slot.startHour)) return HARD_BLOCK;
     }
     let score = 0;
+    if (emp.mustWorkDays.length > 0 && emp.mustWorkDays.some((spec) => daySpecMatchesDate(spec, date))) {
+      score += BONUS_MUST_WORK_DAY;
+    }
     if (emp.preferredDays.some((spec) => daySpecMatchesDate(spec, date))) {
       score += BONUS_PREFERRED_DAY;
     }
@@ -1345,11 +1350,11 @@
   }
 
   // src/parsers/csv-employees.ts
-  var EMPLOYEES_CSV_TEMPLATE = `name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
-Jordan Hayes,FT,,40,40,,,,,avoid
-Alice Smith,PT,4|6,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
-Bob Jones,PT,8,16,32,,Wednesday|Friday,,Alice Smith,neutral
-Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
+  var EMPLOYEES_CSV_TEMPLATE = `name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open,must_work_days
+Jordan Hayes,FT,,40,40,,,,,avoid,
+Alice Smith,PT,4|6,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid,
+Bob Jones,PT,8,16,32,,Wednesday|Friday,,Alice Smith,neutral,
+Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral,
 `;
   function parseEmployeesCSV(raw) {
     const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
@@ -1372,6 +1377,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
       const prefCoNames = parseNameList(cols[7] ?? "");
       const avoidCoNames = parseNameList(cols[8] ?? "");
       const closePref = parseClosePref(cols[9] ?? "");
+      const mustWork = parseDayList(cols[10] ?? "");
       rows.push({
         name,
         status,
@@ -1380,6 +1386,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
         maxHoursPerWeek: maxHours,
         notAvailableDays: notAvail,
         preferredDays: preferred,
+        mustWorkDays: mustWork,
         preferredCoworkers: prefCoNames,
         avoidCoworkers: avoidCoNames,
         closeThenOpenPref: closePref
@@ -1402,6 +1409,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
         maxHoursPerWeek: r.maxHoursPerWeek,
         notAvailableDays: r.notAvailableDays,
         preferredDays: r.preferredDays,
+        ...r.mustWorkDays.length > 0 ? { mustWorkDays: r.mustWorkDays } : {},
         preferredCoworkers: resolveNames(r.preferredCoworkers),
         avoidCoworkers: resolveNames(r.avoidCoworkers),
         closeThenOpenPref: r.closeThenOpenPref
@@ -1946,6 +1954,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
       "Max Hrs",
       "Not Available",
       "Preferred Days",
+      "Must Work Days",
       "Preferred Coworkers",
       "Avoid Coworkers",
       "Close\u2192Open",
@@ -2039,6 +2048,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
       };
       const inpNotAvail = createInput(toDS(init?.notAvailableDays), "e.g. 15|Monday", validateDaySpecs);
       const inpPrefDays = createInput(toDS(init?.preferredDays), "e.g. Friday", validateDaySpecs);
+      const inpMustWork = createInput(toDS(init?.mustWorkDays), "e.g. Monday|Saturday", validateDaySpecs);
       const coValidator = (val) => validateCoworkers(val, getKnownNames());
       const idToName = new Map(currentEmployees.map((e) => [e.id, e.name]));
       const toNames = (ids) => ids ? ids.map((id) => idToName.get(id) || id).join("|") : "";
@@ -2065,6 +2075,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
         inpShiftSizes.dispatchEvent(new Event("input"));
         inpNotAvail.dispatchEvent(new Event("input"));
         inpPrefDays.dispatchEvent(new Event("input"));
+        inpMustWork.dispatchEvent(new Event("input"));
         inpPrefCo.dispatchEvent(new Event("input"));
         inpAvoidCo.dispatchEvent(new Event("input"));
       }, 0);
@@ -2078,6 +2089,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
         const parseDayList2 = (raw) => raw.split("|").map((t) => parseDaySpec(t.trim())).filter((s) => s !== null);
         const notAvail = parseDayList2(inpNotAvail.value);
         const prefDays = parseDayList2(inpPrefDays.value);
+        const mustWork = parseDayList2(inpMustWork.value);
         const prefCo = inpPrefCo.value.split("|").map((s) => s.trim()).filter(Boolean);
         const avoidCo = inpAvoidCo.value.split("|").map((s) => s.trim()).filter(Boolean);
         return {
@@ -2090,6 +2102,7 @@ Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
           maxHoursPerWeek: maxHours,
           notAvailableDays: notAvail,
           preferredDays: prefDays,
+          ...mustWork.length > 0 ? { mustWorkDays: mustWork } : {},
           preferredCoworkers: prefCo,
           avoidCoworkers: avoidCo,
           closeThenOpenPref: selCloseOpen.value

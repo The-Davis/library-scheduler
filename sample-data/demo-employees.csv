@@ -13,6 +13,7 @@
 #   preferred_coworkers — pipe-separated names (must match exactly)
 #   avoid_coworkers    — pipe-separated names
 #   close_then_open    — prefer | avoid | neutral
+#   must_work_days     — pipe-separated DaySpec tokens (mandatory unless employee would exceed hour limit)
 #
 # DaySpec token formats (case-insensitive, pipe-separate multiple):
 #   "15"      → the 15th calendar date of the scheduled month
@@ -20,31 +21,31 @@
 #   "Monday3" → the 3rd Monday of the scheduled month (nth can be 1–5)
 # Examples: "Saturday", "15", "Monday3", "Saturday|15", "Monday3|Friday"
 #
-name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
-Jordan Hayes,FT,,40,40,,Monday|Tuesday|Wednesday|Thursday,,,avoid
-Morgan Ellis,FT,,40,40,,Tuesday|Wednesday|Thursday|Friday,,,neutral
-Avery Simmons,FT,,40,40,,Monday|Wednesday|Friday|Saturday,Jordan Hayes,,avoid
-Casey Thornton,FT,,40,40,,Thursday|Friday|Saturday,,Morgan Ellis,prefer
+name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open,must_work_days
+Jordan Hayes,FT,,40,40,,Monday|Tuesday|Wednesday|Thursday,,,avoid,
+Morgan Ellis,FT,,40,40,,Tuesday|Wednesday|Thursday|Friday,,,neutral,
+Avery Simmons,FT,,40,40,,Monday|Wednesday|Friday|Saturday,Jordan Hayes,,avoid,
+Casey Thornton,FT,,40,40,,Thursday|Friday|Saturday,,Morgan Ellis,prefer,
 
 # ── Part Time Employees ──────────────────────────────────────────────
-Paul King,PT,4|6,12,20,Thursday,Friday|Tuesday|Saturday,,,prefer
-Alice Lewis,PT,8,12,32,Tuesday,Wednesday,,,avoid
-Alice Baker,PT,6|8,12,20,Friday,Tuesday|Thursday|Monday,,,prefer
-Yolanda Carter,PT,,12,28,Tuesday,Wednesday|Monday,Paul King,Casey Thornton,neutral
-David Young,PT,,12,28,Monday,Tuesday,,,neutral
-Henry Carter,PT,,12,28,Saturday,Wednesday|Tuesday|Friday,,Alice Lewis,prefer
-Frank Parker,PT,,12,32,Wednesday,Saturday|Friday,,,prefer
-Sam Green,PT,,12,24,,Tuesday|Thursday|Friday,,,avoid
-Xavier Harris,PT,,12,20,,Wednesday,,Alice Baker,prefer
-Sam Vance,PT,,12,20,Friday,Thursday|Saturday|Tuesday,,,avoid
-Wendy Underwood,PT,,12,32,Thursday,Monday|Wednesday|Tuesday,,,avoid
-Rachel Ingram,PT,,12,32,Friday,Saturday,,Paul King,avoid
-Leo Nash,PT,,12,20,Saturday,Friday|Monday,,,prefer
-Olivia Parker,PT,,12,20,,Tuesday|Thursday|Friday,,,prefer
-Rachel Taylor,PT,,12,32,Tuesday,Monday,,,prefer
-Victor Martin,PT,,12,28,,Tuesday|Saturday|Monday,,,avoid
-Zach Young,PT,,12,24,Saturday,Wednesday|Monday|Friday,,,neutral
-David Green,PT,,12,24,Monday,Saturday|Wednesday|Thursday,,,prefer
-Karen King,PT,,12,16,Tuesday,Monday,Rachel Ingram,,prefer
-Quinn Vance,PT,,12,24,Tuesday,Friday,,,prefer
-David Baker,PT,,12,20,,Friday|Tuesday|Saturday,,,prefer
+Paul King,PT,4|6,12,20,Thursday,Friday|Tuesday|Saturday,,,prefer,
+Alice Lewis,PT,8,12,32,Tuesday,Wednesday,,,avoid,
+Alice Baker,PT,6|8,12,20,Friday,Tuesday|Thursday|Monday,,,prefer,
+Yolanda Carter,PT,,12,28,Tuesday,Wednesday|Monday,Paul King,Casey Thornton,neutral,
+David Young,PT,,12,28,Monday,Tuesday,,,neutral,
+Henry Carter,PT,,12,28,Saturday,Wednesday|Tuesday|Friday,,Alice Lewis,prefer,
+Frank Parker,PT,,12,32,Wednesday,Saturday|Friday,,,prefer,
+Sam Green,PT,,12,24,,Tuesday|Thursday|Friday,,,avoid,
+Xavier Harris,PT,,12,20,,Wednesday,,Alice Baker,prefer,
+Sam Vance,PT,,12,20,Friday,Thursday|Saturday|Tuesday,,,avoid,
+Wendy Underwood,PT,,12,32,Thursday,Monday|Wednesday|Tuesday,,,avoid,
+Rachel Ingram,PT,,12,32,Friday,Saturday,,Paul King,avoid,
+Leo Nash,PT,,12,20,Saturday,Friday|Monday,,,prefer,
+Olivia Parker,PT,,12,20,,Tuesday|Thursday|Friday,,,prefer,
+Rachel Taylor,PT,,12,32,Tuesday,Monday,,,prefer,
+Victor Martin,PT,,12,28,,Tuesday|Saturday|Monday,,,avoid,
+Zach Young,PT,,12,24,Saturday,Wednesday|Monday|Friday,,,neutral,
+David Green,PT,,12,24,Monday,Saturday|Wednesday|Thursday,,,prefer,
+Karen King,PT,,12,16,Tuesday,Monday,Rachel Ingram,,prefer,
+Quinn Vance,PT,,12,24,Tuesday,Friday,,,prefer,
+David Baker,PT,,12,20,,Friday|Tuesday|Saturday,,,prefer,

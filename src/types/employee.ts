@@ -147,6 +147,8 @@ export interface EmployeeInit {
   notAvailableDays?:   DaySpec[];
   /** Days this employee prefers to work. Supports all DaySpec forms. */
   preferredDays?:      DaySpec[];
+  /** Days this employee is required to work (mandatory unless they would exceed their hour limit). */
+  mustWorkDays?:       DaySpec[];
   unavailableHours?:   DayHourRange[];
   preferredHours?:     DayHourRange[];
   /** IDs of employees this person prefers to work alongside */
@@ -168,6 +170,7 @@ export class Employee {
   readonly shiftSizes?:         number[];
   readonly notAvailableDays:    DaySpec[];
   readonly preferredDays:       DaySpec[];
+  readonly mustWorkDays:        DaySpec[];
   readonly unavailableHours:    DayHourRange[];
   readonly preferredHours:      DayHourRange[];
   readonly preferredCoworkers:  string[];
@@ -193,6 +196,7 @@ export class Employee {
 
     this.notAvailableDays   = init.notAvailableDays   ?? [];
     this.preferredDays      = init.preferredDays       ?? [];
+    this.mustWorkDays       = init.mustWorkDays        ?? [];
     this.unavailableHours   = init.unavailableHours    ?? [];
     this.preferredHours     = init.preferredHours      ?? [];
     this.preferredCoworkers = init.preferredCoworkers  ?? [];
