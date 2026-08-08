@@ -5,14 +5,15 @@ import { SeededRandom } from './seeded-random';
 // ---------------------------------------------------------------------------
 // Score modifiers
 // ---------------------------------------------------------------------------
-const HARD_BLOCK         = -Infinity; // cannot assign
-const BONUS_PREFERRED_DAY     =  20;
-const BONUS_PREFERRED_HOURS   =  15;
-const BONUS_PREFERRED_COWORKER=  10;
-const PENALTY_AVOID_COWORKER  = -15;
-const PENALTY_CLOSE_OPEN      = -25; // general back-to-back penalty
-const PENALTY_CLOSE_OPEN_PREF = -25; // extra if employee actively dislikes it
-const BONUS_CLOSE_OPEN_PREF   =  15; // bonus if employee actively likes it
+const HARD_BLOCK              = -Infinity; // cannot assign
+const BONUS_MUST_WORK_DAY     = 1000; // near-mandatory; only bypassed by weekly hour hard block
+const BONUS_PREFERRED_DAY     =   20;
+const BONUS_PREFERRED_HOURS   =   15;
+const BONUS_PREFERRED_COWORKER=   10;
+const PENALTY_AVOID_COWORKER  =  -15;
+const PENALTY_CLOSE_OPEN      =  -25; // general back-to-back penalty
+const PENALTY_CLOSE_OPEN_PREF =  -25; // extra if employee actively dislikes it
+const BONUS_CLOSE_OPEN_PREF   =   15; // bonus if employee actively likes it
 
 // ---------------------------------------------------------------------------
 // Scoring context — everything the scorer needs
@@ -115,6 +116,11 @@ export function scoreEmployee(ctx: ScoreContext): number {
 
   // --- Soft preferences ---
   let score = 0;
+
+  // Must-work day — very high bonus, dominated only by the weekly max hard block
+  if (emp.mustWorkDays.length > 0 && emp.mustWorkDays.some(spec => daySpecMatchesDate(spec, date))) {
+    score += BONUS_MUST_WORK_DAY;
+  }
 
   // Preferred day (any matching DaySpec in the employee's preferredDays list)
   if (emp.preferredDays.some(spec => daySpecMatchesDate(spec, date))) {

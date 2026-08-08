@@ -81,7 +81,7 @@ export function showRosterEditor(currentEmployees: Employee[], onSave: OnRosterS
   const headTr = document.createElement('tr');
   const headers = [
     'Name', 'Status', 'Shift Sizes (4|6|8)', 'Min Hrs', 'Max Hrs',
-    'Not Available', 'Preferred Days', 'Preferred Coworkers', 'Avoid Coworkers',
+    'Not Available', 'Preferred Days', 'Must Work Days', 'Preferred Coworkers', 'Avoid Coworkers',
     'Close\u2192Open', '' // Action column
   ];
   headers.forEach(h => {
@@ -186,8 +186,9 @@ export function showRosterEditor(currentEmployees: Employee[], onSave: OnRosterS
       }).join('|');
     };
 
-    const inpNotAvail = createInput(toDS(init?.notAvailableDays), 'e.g. 15|Monday', validateDaySpecs);
-    const inpPrefDays = createInput(toDS(init?.preferredDays), 'e.g. Friday', validateDaySpecs);
+    const inpNotAvail   = createInput(toDS(init?.notAvailableDays), 'e.g. 15|Monday', validateDaySpecs);
+    const inpPrefDays   = createInput(toDS(init?.preferredDays), 'e.g. Friday', validateDaySpecs);
+    const inpMustWork   = createInput(toDS(init?.mustWorkDays), 'e.g. Monday|Saturday', validateDaySpecs);
     
     // Coworker validation uses the dynamic getter
     const coValidator = (val: string) => validateCoworkers(val, getKnownNames());
@@ -226,6 +227,7 @@ export function showRosterEditor(currentEmployees: Employee[], onSave: OnRosterS
       inpShiftSizes.dispatchEvent(new Event('input'));
       inpNotAvail.dispatchEvent(new Event('input'));
       inpPrefDays.dispatchEvent(new Event('input'));
+      inpMustWork.dispatchEvent(new Event('input'));
       inpPrefCo.dispatchEvent(new Event('input'));
       inpAvoidCo.dispatchEvent(new Event('input'));
     }, 0);
@@ -241,8 +243,9 @@ export function showRosterEditor(currentEmployees: Employee[], onSave: OnRosterS
       const maxHours = parseInt(inpMaxHours.value, 10) || 32;
 
       const parseDayList = (raw: string) => raw.split('|').map(t => parseDaySpec(t.trim())).filter(s => s !== null) as any[];
-      const notAvail = parseDayList(inpNotAvail.value);
-      const prefDays = parseDayList(inpPrefDays.value);
+      const notAvail   = parseDayList(inpNotAvail.value);
+      const prefDays   = parseDayList(inpPrefDays.value);
+      const mustWork   = parseDayList(inpMustWork.value);
 
       // Coworkers will be names at this point; we resolve them to IDs later
       const prefCo = inpPrefCo.value.split('|').map(s => s.trim()).filter(Boolean);
@@ -257,6 +260,7 @@ export function showRosterEditor(currentEmployees: Employee[], onSave: OnRosterS
         maxHoursPerWeek: maxHours,
         notAvailableDays: notAvail,
         preferredDays: prefDays,
+        ...(mustWork.length > 0 ? { mustWorkDays: mustWork } : {}),
         preferredCoworkers: prefCo,
         avoidCoworkers: avoidCo,
         closeThenOpenPref: selCloseOpen.value as any

@@ -27,11 +27,11 @@ import { EmployeeStatus } from '../types/shift';
 //   "Monday3"  → the third Monday of the scheduled month
 // ---------------------------------------------------------------------------
 
-export const EMPLOYEES_CSV_TEMPLATE = `name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open
-Jordan Hayes,FT,,40,40,,,,,avoid
-Alice Smith,PT,4|6,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid
-Bob Jones,PT,8,16,32,,Wednesday|Friday,,Alice Smith,neutral
-Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral
+export const EMPLOYEES_CSV_TEMPLATE = `name,status,shift_sizes,min_hours,max_hours,not_available_days,preferred_days,preferred_coworkers,avoid_coworkers,close_then_open,must_work_days
+Jordan Hayes,FT,,40,40,,,,,avoid,
+Alice Smith,PT,4|6,12,24,Saturday,Monday|Tuesday,Jordan Hayes,,avoid,
+Bob Jones,PT,8,16,32,,Wednesday|Friday,,Alice Smith,neutral,
+Dana Lee,PT,,12,20,15|Monday3,Tuesday|Friday,,,neutral,
 `;
 
 
@@ -43,6 +43,7 @@ export interface EmployeeCSVRow {
   maxHoursPerWeek:    number;
   notAvailableDays:   DaySpec[];
   preferredDays:      DaySpec[];
+  mustWorkDays:       DaySpec[];
   preferredCoworkers: string[];
   avoidCoworkers:     string[];
   closeThenOpenPref:  CloseThenOpenPref;
@@ -83,17 +84,18 @@ export function parseEmployeesCSV(raw: string): Employee[] {
     const minHours = parseInt(cols[3] ?? '', 10) || 12;
     const maxHours = parseInt(cols[4] ?? '', 10) || 32;
 
-    const notAvail   = parseDayList(cols[5] ?? '');
-    const preferred  = parseDayList(cols[6] ?? '');
-    const prefCoNames = parseNameList(cols[7] ?? '');
+    const notAvail    = parseDayList(cols[5] ?? '');
+    const preferred   = parseDayList(cols[6] ?? '');
+    const prefCoNames  = parseNameList(cols[7] ?? '');
     const avoidCoNames = parseNameList(cols[8] ?? '');
-    const closePref  = parseClosePref(cols[9] ?? '');
+    const closePref   = parseClosePref(cols[9] ?? '');
+    const mustWork    = parseDayList(cols[10] ?? '');
 
     rows.push({
       name, status,
       ...(shiftSizes.length > 0 ? { shiftSizes } : {}),
       minHoursPerWeek: minHours, maxHoursPerWeek: maxHours,
-      notAvailableDays: notAvail, preferredDays: preferred,
+      notAvailableDays: notAvail, preferredDays: preferred, mustWorkDays: mustWork,
       preferredCoworkers: prefCoNames, avoidCoworkers: avoidCoNames,
       closeThenOpenPref: closePref,
     });
@@ -123,6 +125,7 @@ export function parseEmployeesCSV(raw: string): Employee[] {
       maxHoursPerWeek:    r.maxHoursPerWeek,
       notAvailableDays:   r.notAvailableDays,
       preferredDays:      r.preferredDays,
+      ...(r.mustWorkDays.length > 0 ? { mustWorkDays: r.mustWorkDays } : {}),
       preferredCoworkers: resolveNames(r.preferredCoworkers),
       avoidCoworkers:     resolveNames(r.avoidCoworkers),
       closeThenOpenPref:  r.closeThenOpenPref,
